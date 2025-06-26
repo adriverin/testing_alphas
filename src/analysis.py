@@ -10,8 +10,21 @@ import os
 def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=5):
     """
     Calculates performance metrics and creates a 2-panel plot on a given figure.
-    This version uses a "floating" benchmark aligned with the alpha's active period,
-    and adds a clear text annotation specifying the date range.
+    - Uses a "floating" benchmark aligned with the alpha's active period.
+    - Adds a clear text annotation specifying the active date range.
+    - Adds a "Net of Fees" curve to the equity plot.
+    - Displays daily portfolio turnover in the second panel.
+    
+    Args:
+        returns_series (pd.Series): The daily returns of the strategy.
+        portfolio_info (pd.DataFrame): DataFrame with weights and turnover.
+        price_data (pd.DataFrame): The full price data for the relevant period, used for the benchmark.
+        fig (matplotlib.figure.Figure): The matplotlib figure object to plot on.
+        title (str): The title for the overall figure.
+        transaction_cost_bps (int): The assumed one-way transaction cost in basis points (1 bps = 0.01%).
+        
+    Returns:
+        dict: A dictionary of performance metrics based on net returns.
     """
     fig.suptitle(title, fontsize=16)
     
@@ -69,7 +82,7 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
              verticalalignment='top', bbox=dict(boxstyle='round,pad=0.3', fc='yellow', alpha=0.5))
     
     ax1.set_ylabel('Cumulative Returns')
-    ax1.legend(loc='upper left')
+    ax1.legend(loc='upper center')
     ax1.grid(True)
     
     # --- Bottom Panel: Daily Turnover ---
@@ -97,7 +110,7 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
     }
 
 
-def generate_full_report(alpha_calculator, price_data, pdf_path='alpha_report.pdf'):
+def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_report.pdf'):
     """
     Calculates all implemented alphas and backtests them.
     - Adds a Buy & Hold benchmark to each plot.
@@ -152,7 +165,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='alpha_report.pd
 
 
 
-def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports"):
+def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=105):
     """
     Performs a chunked backtest for each alpha over specified date intervals.
     Generates one PDF report per alpha, with each page showing performance in one interval.
@@ -163,7 +176,7 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
         os.makedirs(report_dir)
         
     # Loop through each alpha in the calculator
-    for i in range(1, 102):
+    for i in range(first_alpha, last_alpha):
         alpha_name = f'alpha{i:03d}'
         if not (hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name))):
             continue
@@ -234,7 +247,7 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
 
 
 
-def generate_summary_html_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/summary_reports"):
+def generate_summary_html_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/summary_reports", first_alpha=1, last_alpha=105):
     """
     Performs a chunked backtest and generates a single, interactive HTML summary report.
     The report is a table of Sharpe ratios, color-coded like a heatmap, with tooltips
@@ -250,7 +263,7 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
     all_metrics_data = []
     interval_names = [f"{pd.to_datetime(s).year}-{pd.to_datetime(e).year}" for s, e in date_intervals]
 
-    for i in range(1, 102):
+    for i in range(first_alpha, last_alpha):
         alpha_name = f'alpha{i:03d}'
         if not (hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name))):
             continue
@@ -328,11 +341,13 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
     # Create corresponding pivot tables for tooltip data
     return_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='return')
     drawdown_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='max_drawdown')
-    
+    turnover_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='turnover')
+
     # Create the text for the tooltips (hover text)
     tooltip_text = (
-        'Return: ' + return_pivot.applymap('{:.2%}'.format) + 
-        ', Max Drawdown: ' + drawdown_pivot.applymap('{:.2%}'.format)
+        'Total Return: ' + return_pivot.map('{:.2%}'.format) + 
+        ', Max Drawdown: ' + drawdown_pivot.map('{:.2%}'.format) +
+        ', Avg Turnover: ' + turnover_pivot.map('{:.2%}'.format)
     )
 
     # --- 3. Style the DataFrame ---

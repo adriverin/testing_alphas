@@ -98,6 +98,11 @@ class Alpha101:
         # Rank of the current value within the past d days
         return series.groupby(level='asset').rolling(d).apply(lambda x: rankdata(x)[-1] / len(x), raw=True).reset_index(level=0, drop=True)
 
+    # Function is used in alpha105. It is provided by Claude 4.
+    def ts_mean(self, series, d):
+        """Helper function to calculate time series rolling mean"""
+        return series.groupby(level='asset').rolling(d).mean().reset_index(level=0, drop=True)
+
     def sum(self, series, d):
         return series.groupby(level='asset').rolling(d).sum().reset_index(level=0, drop=True)
 
@@ -554,7 +559,7 @@ class Alpha101:
         return -1 * (p1 + p2)
 
     def alpha067(self):
-        """Alpha#67: ((rank((high - ts_min(high, 2.14593)))^rank(correlation(IndNeutralize(vwap, IndClass.sector), IndNeutralize(adv20, IndClass.subindustry), 6.02936))) * -1)"""
+        """Alpha#67: ((rank(high - ts_min(high, 2.14593)))^rank(correlation(IndNeutralize(vwap, IndClass.sector), IndNeutralize(adv20, IndClass.subindustry), 6.02936))) * -1)"""
         p1 = self.rank(self.high - self.ts_min(self.high, int(2.14593)))
         p2_neut_vwap = self.indneutralize(self.vwap, 'sector')
         p2_neut_adv20 = self.indneutralize(self.adv20, 'sector') # Using same level for simplicity
@@ -874,10 +879,138 @@ class Alpha101:
         return (self.close - self.open) / ((self.high - self.low) + 0.001)
 
 
+
+    # ------------------------------------------------------------------------------------------------
+    # Alpha 102-105 are provided by different LLMs.
+    # ------------------------------------------------------------------------------------------------
+    
+    def alpha102(self): # o3 pro provided function
+        """Alpha#102: rank(((delta(close, 5) / delay(close, 5)) - (delta(close, 20) / delay(close, 20))) * rank(volume / adv20))
+
+        Concept:
+            • Capture the difference between short-term (5-day) and medium-term (20-day) momentum.
+            • Weight this momentum spread by contemporaneous liquidity (volume divided by 20-day average volume).
+            • The result is then ranked cross-sectionally each day to produce a mean-zero signal.
+        """
+        # 5-day and 20-day price changes normalised by lagged prices
+        mom_short = self.delta(self.close, 5) / self.delay(self.close, 5).replace(0, np.nan)
+        mom_long  = self.delta(self.close, 20) / self.delay(self.close, 20).replace(0, np.nan)
+        momentum_spread = mom_short - mom_long
+
+        # Liquidity adjustment: current volume relative to 20-day average
+        vol_ratio = self.volume / self.adv20.replace(0, np.nan)
+
+        return self.rank(momentum_spread) * self.rank(vol_ratio)
+
+    def alpha103(self): # Gemini 2.5 pro provided function
+        """Alpha#103: rank(indneutralize((vwap - open) / (high - low), 'sector')) * rank(volume / adv20)
+
+        Rationale:
+            - Captures intraday momentum ((vwap - open) / (high - low)) on a sector-neutral basis.
+              A positive value suggests the stock traded, on average, above its open price.
+            - This signal is then weighted by a liquidity shock measure (current volume vs. 20-day average).
+            - The final signal is strong for stocks showing sector-relative intraday strength on high relative volume.
+        """
+        intraday_momentum = (self.vwap - self.open) / (self.high - self.low).replace(0, np.nan)
+        neut_momentum = self.indneutralize(intraday_momentum, 'sector')
+        
+        vol_ratio = self.volume / self.adv20.replace(0, np.nan)
+        
+        return self.rank(neut_momentum) * self.rank(vol_ratio)
+
+
+    def alpha104(self): # Deepseek R1 provided function
+        """Alpha#104: 
+        (rank(decay_linear(delta(close, 5), 10)) * 
+        (1 - rank(decay_linear(correlation(vwap, volume, 10), 5)))) * 
+        (1 + rank(delta(close, 10))) * 
+        indneutralize(1 / (high - low), 'sector')
+        
+        Concept:
+            1. Combines short-term momentum (5-day delta) with medium-term mean reversion (10-day delta)
+            2. Adjusts for liquidity effects through vwap-volume correlation
+            3. Normalizes by intraday range on a sector-neutral basis
+            4. Uses decay_linear to emphasize recent observations
+            
+        Rationale:
+            - First term captures recent price momentum (5-day change weighted over 10 days)
+            - Second term discounts stocks with high vwap-volume correlation (potentially overbought)
+            - Third term amplifies signals showing both short and medium-term momentum
+            - Sector neutralization reduces industry bias in the range normalization
+        """
+        # Short-term momentum component (5-day delta weighted over 10 days)
+        mom_short = self.rank(self.decay_linear(self.delta(self.close, 5), 10))
+        
+        # Liquidity adjustment (1 - correlation between vwap and volume)
+        vwap_vol_corr = self.correlation(self.vwap, self.volume, 10)
+        liquidity_factor = 1 - self.rank(self.decay_linear(vwap_vol_corr, 5))
+        
+        # Medium-term momentum confirmation
+        mom_confirmation = 1 + self.rank(self.delta(self.close, 10))
+        
+        # Sector-neutral range normalization
+        price_range = 1 / (self.high - self.low).replace(0, np.nan)
+        range_neutral = self.indneutralize(price_range, 'sector')
+        
+        return mom_short * liquidity_factor * mom_confirmation * range_neutral
+    
+
+    def alpha105(self): # Claude 4 provided function
+        """
+        Alpha#105: Advanced Momentum-Mean Reversion with Volume-Volatility Adjustment
+        
+        Formula: rank(ts_rank(close/ts_mean(close, 20), 5) * correlation(volume, abs(returns), 10)) - 
+                rank(decay_linear(stddev(close/vwap, 15), 10) * ts_rank(volume/adv30, 8))
+        
+        Rationale:
+            This alpha captures two key market dynamics:
+            
+            1. First Component (Momentum + Volume-Price Correlation):
+            - ts_rank(close/ts_mean(close, 20), 5): Captures short-term momentum relative to medium-term average
+            - correlation(volume, abs(returns), 10): Measures volume-volatility relationship (higher when volume drives price moves)
+            - Product identifies stocks with strong recent momentum backed by volume
+            
+            2. Second Component (Mean Reversion + Liquidity Shock):
+            - stddev(close/vwap, 15): Measures price deviation from fair value (VWAP) volatility
+            - decay_linear(..., 10): Gives more weight to recent volatility patterns
+            - ts_rank(volume/adv30, 8): Captures recent volume anomalies
+            - Product identifies stocks with high volatility and unusual volume (often mean-reverting)
+            
+            The final signal (Component 1 - Component 2) is positive for stocks showing:
+            - Strong momentum with volume confirmation
+            - Low volatility relative to fair value
+            - Normal volume patterns
+            
+            This creates a balanced signal that captures both momentum and quality factors.
+        """
+        
+        # Component 1: Momentum with Volume Confirmation
+        # Short-term momentum relative to medium-term average
+        price_momentum = self.ts_rank(self.close / self.ts_mean(self.close, 20), 5)
+        
+        # Volume-volatility correlation (higher when volume drives price moves)
+        vol_vol_corr = self.correlation(self.volume, np.abs(self.returns), 10)
+        
+        momentum_component = self.rank(price_momentum * vol_vol_corr)
+        
+        # Component 2: Mean Reversion with Liquidity Shock
+        # Price deviation from VWAP volatility (mean reversion signal)
+        price_vwap_vol = self.stddev(self.close / self.vwap.replace(0, np.nan), 15)
+        weighted_volatility = self.decay_linear(price_vwap_vol, 10)
+        
+        # Volume anomaly detection
+        volume_anomaly = self.ts_rank(self.volume / self.adv30.replace(0, np.nan), 8)
+        
+        reversion_component = self.rank(weighted_volatility * volume_anomaly)
+        
+        # Final alpha: Momentum - Mean Reversion
+        return momentum_component - reversion_component
+
+
     def get_all_alphas(self):
         """Calculates all implemented alpha functions and returns them in a DataFrame."""
         all_alphas = {}
-        for i in range(1, 102):
+        for i in range(1, 104):
             alpha_name = f'alpha{i:03d}'
             if hasattr(self, alpha_name):
                 try:
@@ -889,20 +1022,12 @@ class Alpha101:
         return pd.DataFrame(all_alphas)
 
 
-    # def alpha102(self):
-    #     """Calculates the average of some alphas."""
-    #     alpha_names = ['alpha001', 'alpha002', 'alpha003', 'alpha004', 'alpha005', 'alpha006', 'alpha008', 'alpha009', 'alpha010', 'alpha011', 'alpha012', 'alpha013', 'alpha014', 'alpha015', 'alpha016', 'alpha017', 'alpha018', 'alpha019', 'alpha020', 'alpha021', 'alpha022', 'alpha024', 'alpha025', 'alpha026', 'alpha028', 'alpha029', 'alpha030', 'alpha031', 'alpha032', 'alpha033', 'alpha034', 'alpha035', 'alpha036', 'alpha037', 'alpha038', 'alpha039', 'alpha040', 'alpha041', 'alpha042', 'alpha043', 'alpha044', 'alpha045', 'alpha046', 'alpha047', 'alpha048', 'alpha049', 'alpha050', 'alpha051', 'alpha052', 'alpha053', 'alpha054', 'alpha055', 'alpha056', 'alpha057', 'alpha058', 'alpha059', 'alpha060', 'alpha066', 'alpha073', 'alpha083', 'alpha084', 'alpha085', 'alpha097']
-    #     all_alphas = [getattr(self, name)() for name in alpha_names]
-        
-    #     # Ensure all alphas have a unique index before concatenation
-    #     all_alphas = [alpha.rename(lambda x: f"{name}_{x}", axis=0) for name, alpha in zip(alpha_names, all_alphas)]
-        
-    #     # Check for non-unique indices and handle them
-    #     for alpha in all_alphas:
-    #         if alpha.index.duplicated().any():
-    #             alpha = alpha[~alpha.index.duplicated(keep='first')]
-        
-    #     # Calculate the average of the ranks of the alphas
-    #     avg_alpha = pd.concat(all_alphas, axis=1).mean(axis=1).rank()
-        
-    #     return avg_alpha
+
+
+
+
+
+
+
+
+
