@@ -66,8 +66,8 @@ if __name__ == "__main__":
     # "QCOM","RTX","SBUX","SCHW","SO","SPG","T","TGT","TMO","TMUS",
     # "TSLA","TXN","UNH","UNP","UPS","USB","V","VZ","WFC","WMT","XOM"
     # ]
-    start = '2014-01-01'
-    end = '2021-01-01'
+    start = '2011-01-01'
+    end = '2025-01-01'
 
     print(" ")
     print(" ")
@@ -95,13 +95,14 @@ if __name__ == "__main__":
 
 
 
+
     if not price_data.empty:
         print("\n2. Initializing the Alpha101 calculator...")
         alpha_calculator = Alpha101(price_data)
         
         # Define the intervals you want to test
         # For example, let's split the whole period into 4 chunks
-        number_of_intervals = 10
+        number_of_intervals = 20
         intervals_to_test = generate_date_intervals(start, end, number_of_intervals)
         
         print(f"\nGenerated {len(intervals_to_test)} testing intervals:")
@@ -109,8 +110,9 @@ if __name__ == "__main__":
             print(f"  - {s} to {e}")
             
         # Run the new interval-based report generator
-        firstAlpha = 102
-        lastAlpha = 105
+        firstAlpha = 200
+        lastAlpha = 300
 
         generate_interval_report(alpha_calculator, price_data, intervals_to_test, first_alpha=firstAlpha, last_alpha=lastAlpha+1)
         generate_summary_html_report(alpha_calculator, price_data, intervals_to_test, first_alpha=firstAlpha, last_alpha=lastAlpha+1)
+        generate_full_report(alpha_calculator, price_data, first_alpha=firstAlpha, last_alpha=lastAlpha+1)

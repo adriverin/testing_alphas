@@ -57,17 +57,21 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
     cumulative_returns_net = (1 + returns_series_net).cumprod()
     ax1.plot(cumulative_returns_net.index, cumulative_returns_net.values, label=f'Alpha Strategy (Net, {transaction_cost_bps} bps)', color='green', linewidth=2)
     
-    # --- Performance Metrics (calculated on the NET returns over its active period) ---
-    std_dev_net = np.std(returns_series_net)
-    if std_dev_net == 0: std_dev_net = 1e-6
-    sharpe_ratio_net = np.mean(returns_series_net) / std_dev_net * np.sqrt(252)
-    # Annualization should be based on the active period
-    active_days = (active_end_date - active_start_date).days
-    if active_days > 0:
-        annualized_return_net = (cumulative_returns_net.iloc[-1]) ** (365 / active_days) - 1
+    # --- Calculate Comparative Metrics (IR) ---
+    excess_returns = returns_series_net - benchmark_returns_aligned
+    tracking_error = np.std(excess_returns) * np.sqrt(252)
+    # Avoid division by zero if tracking error is zero
+    if tracking_error == 0:
+        information_ratio = np.nan
     else:
-        annualized_return_net = cumulative_returns_net.iloc[-1] - 1
-        
+        annualized_excess_return = np.mean(excess_returns) * 252
+        information_ratio = annualized_excess_return / tracking_error
+
+    # --- Calculate Standard Performance Metrics (on Net Returns) ---
+    std_dev_net = np.std(returns_series_net); std_dev_net = 1e-6 if std_dev_net == 0 else std_dev_net
+    sharpe_ratio_net = np.mean(returns_series_net) / std_dev_net * np.sqrt(252)
+    cumulative_returns_net = (1 + returns_series_net).cumprod()
+    annualized_return_net = (cumulative_returns_net.iloc[-1]) ** (252 / len(cumulative_returns_net)) - 1
     peak_net = cumulative_returns_net.expanding(min_periods=1).max()
     drawdown_net = (cumulative_returns_net / peak_net) - 1
     max_drawdown_net = drawdown_net.min()
@@ -75,9 +79,10 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
     # --- Add the Date Range Annotation ---
     date_range_text = f"Active Period: {active_start_date.strftime('%Y-%m-%d')} to {active_end_date.strftime('%Y-%m-%d')}"
     stats_text = (f"Net Sharpe: {sharpe_ratio_net:.2f}\n"
+                  f"Information Ratio: {information_ratio:.2f}\n"
                   f"Net Ann. Return: {annualized_return_net:.2%}\n"
-                  f"Net Max Drawdown: {max_drawdown_net:.2%}\n"
-                  f"{date_range_text}") # Add the date range here
+                  f"Net Max Drawdown: {max_drawdown_net:.2%}\n")
+                #   f"{date_range_text}") 
     ax1.text(0.02, 0.98, stats_text, transform=ax1.transAxes, fontsize=9,
              verticalalignment='top', bbox=dict(boxstyle='round,pad=0.3', fc='yellow', alpha=0.5))
     
@@ -105,12 +110,12 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
     
     return {
         'sharpe': sharpe_ratio_net,
+        'ir': information_ratio, 
         'annual_return': annualized_return_net,
         'max_drawdown': max_drawdown_net
     }
 
-
-def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_report.pdf'):
+def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_report.pdf', first_alpha=1, last_alpha=106):
     """
     Calculates all implemented alphas and backtests them.
     - Adds a Buy & Hold benchmark to each plot.
@@ -118,7 +123,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
     print(f"\n--- Generating Full Alpha Report to '{pdf_path}' ---")
     
     with backend_pdf.PdfPages(pdf_path) as pdf:
-        for i in range(1, 103):
+        for i in range(first_alpha, last_alpha):
             alpha_name = f'alpha{i:03d}'
             if hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name)):
                 print(f"\nProcessing {alpha_name}...")
@@ -165,7 +170,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
 
 
 
-def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=105):
+def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=106):
     """
     Performs a chunked backtest for each alpha over specified date intervals.
     Generates one PDF report per alpha, with each page showing performance in one interval.
@@ -247,22 +252,21 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
 
 
 
-def generate_summary_html_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/summary_reports", first_alpha=1, last_alpha=105):
+def generate_summary_html_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/summary_reports", first_alpha=1, last_alpha=106):
     """
     Performs a chunked backtest and generates a single, interactive HTML summary report.
-    The report is a table of Sharpe ratios, color-coded like a heatmap, with tooltips
-    showing additional performance metrics.
+    - The main metric displayed and color-coded is the Information Ratio (IR).
+    - Tooltips show Sharpe Ratio, Return, Max Drawdown, and Turnover.
     """
-    print(f"\n--- Starting HTML Summary Report Generation ---")
+    print(f"\n--- Starting HTML Summary Report Generation (centered on Information Ratio) ---")
     
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
         
-    # --- 1. Gather all performance data ---
-    
     all_metrics_data = []
     interval_names = [f"{pd.to_datetime(s).year}-{pd.to_datetime(e).year}" for s, e in date_intervals]
 
+    # --- 1. Gather all performance data ---
     for i in range(first_alpha, last_alpha):
         alpha_name = f'alpha{i:03d}'
         if not (hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name))):
@@ -282,14 +286,13 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
             print(f"-> Skipping, no signals.")
             continue
             
-        # Loop through each date interval
         for j, (start_str, end_str) in enumerate(date_intervals):
             start_dt = pd.to_datetime(start_str)
             end_dt = pd.to_datetime(end_str)
             
             try:
-                interval_price_data = full_price_data.loc[pd.IndexSlice[start_dt:end_dt, :]]
-                interval_alpha_series = full_alpha_series.loc[pd.IndexSlice[start_dt:end_dt, :]]
+                interval_price_data = full_price_data.loc[pd.IndexSlice[start_dt:end_dt]]
+                interval_alpha_series = full_alpha_series.loc[pd.IndexSlice[start_dt:end_dt]]
                 
                 if interval_alpha_series.empty or interval_price_data.empty: continue
                     
@@ -297,31 +300,31 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
                 
                 if strategy_returns.empty: continue
 
-                # Calculate net returns and metrics for this interval
+                # --- METRIC CALCULATION (WITH IR) ---
                 daily_turnover = portfolio_info['turnover'].groupby('date').first()
-                daily_cost = daily_turnover * (5 / 10000.0) # Using 5 bps cost
-                returns_series_net = strategy_returns - daily_cost
-
-                std_dev_net = np.std(returns_series_net)
-                if std_dev_net == 0: std_dev_net = 1e-6
+                daily_cost = daily_turnover * (5 / 10000.0)
+                returns_series_net = strategy_returns - daily_cost.reindex(strategy_returns.index).fillna(0)
                 
-                sharpe = np.mean(returns_series_net) / std_dev_net * np.sqrt(252)
+                benchmark_returns = interval_price_data['returns'].groupby(level='date').mean().reindex(returns_series_net.index).fillna(0)
+                excess_returns = returns_series_net - benchmark_returns
+                
+                std_dev_net = np.std(returns_series_net); std_dev_net = 1e-6 if std_dev_net == 0 else std_dev_net
+                tracking_error = np.std(excess_returns); tracking_error = 1e-6 if tracking_error == 0 else tracking_error * np.sqrt(252)
+                
+                sharpe = np.mean(returns_series_net) * 252 / (std_dev_net * np.sqrt(252))
+                annualized_excess_return = np.mean(excess_returns) * 252
+                ir = annualized_excess_return / tracking_error
+                
+                total_ret = (1 + returns_series_net).prod() - 1
                 cum_ret_net = (1 + returns_series_net).cumprod()
-                total_ret = cum_ret_net.iloc[-1] - 1
-                
                 peak = cum_ret_net.expanding(min_periods=1).max()
                 drawdown = (cum_ret_net / peak) - 1
                 max_dd = drawdown.min()
-                
                 avg_turnover = daily_turnover.mean()
                 
                 all_metrics_data.append({
-                    'alpha': alpha_name,
-                    'interval': interval_names[j],
-                    'sharpe': sharpe,
-                    'return': total_ret,
-                    'max_drawdown': max_dd,
-                    'turnover': avg_turnover
+                    'alpha': alpha_name, 'interval': interval_names[j], 'ir': ir,
+                    'sharpe': sharpe, 'return': total_ret, 'max_drawdown': max_dd, 'turnover': avg_turnover
                 })
                 
             except Exception as e:
@@ -333,90 +336,150 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
         print("No data was generated. Cannot create report.")
         return
 
-    # --- 2. Structure the data into pivot tables ---
-    
+    # --- 2. Structure the data into pivot tables for each metric ---
     metrics_df = pd.DataFrame(all_metrics_data)
-    sharpe_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='sharpe')
     
-    # Create corresponding pivot tables for tooltip data
+    # Main pivot is now Information Ratio
+    ir_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='ir')
+    
+    # Create corresponding pivot tables for all tooltip data
+    sharpe_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='sharpe')
     return_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='return')
     drawdown_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='max_drawdown')
     turnover_pivot = metrics_df.pivot_table(index='alpha', columns='interval', values='turnover')
 
-    # Create the text for the tooltips (hover text)
-    tooltip_text = (
-        'Total Return: ' + return_pivot.map('{:.2%}'.format) + 
+    # Create the rich text for the tooltips (hover text)
+    tooltip_df = pd.DataFrame(
+        'Sharpe: ' + sharpe_pivot.map('{:.2f}'.format) +
+        ', Total Return: ' + return_pivot.map('{:.2%}'.format) + 
         ', Max Drawdown: ' + drawdown_pivot.map('{:.2%}'.format) +
-        ', Avg Turnover: ' + turnover_pivot.map('{:.2%}'.format)
-    )
+        ', Avg Turnover: ' + turnover_pivot.map('{:.2%}'.format),
+        index=ir_pivot.index, columns=ir_pivot.columns
+    ).fillna('')
 
-    # --- 3. Style the DataFrame ---
-    
-    styled_df = sharpe_pivot.style \
-        .set_caption("Alpha Performance Summary (Net Sharpe Ratio)") \
-        .background_gradient(cmap='RdYlGn', axis=None, vmin=-2.0, vmax=2.0) \
+    # --- 3. Style the DataFrame based on IR ---
+    styled_df = ir_pivot.style \
+        .set_caption("Alpha Performance Summary: Information Ratio (Net of Fees)") \
+        .background_gradient(cmap='RdYlGn', axis=None, vmin=-1.0, vmax=1.0) \
         .format('{:.2f}', na_rep='-') \
-        .set_tooltips(tooltip_text, css_class='pd-tooltip')
+        .set_tooltips(tooltip_df)
     
-    
-    # --- 4. Export to a COMPLETE HTML file ---
-    # THIS IS THE FIX
-    
-    # Get the HTML fragment from pandas
-    html_fragment = styled_df.to_html()
-    
-    # Create a full HTML document structure
+    # Get the raw HTML for the table body and head from the Styler
+    html_table = styled_df.to_html()
+
     full_html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Alpha Performance Summary</title>
         <style>
-            body {{ font-family: sans-serif; }}
-            table {{ border-collapse: collapse; margin: 25px 0; font-size: 0.9em; }}
-            caption {{ font-size: 1.5em; margin-bottom: 15px; font-weight: bold; }}
-            th, td {{ padding: 12px 15px; border: 1px solid #dddddd; }}
-            thead th {{ background-color: #009879; color: #ffffff; text-align: center; }}
-            tbody tr:nth-of-type(even) {{ background-color: #f3f3f3; }}
-            tbody tr:last-of-type {{ border-bottom: 2px solid #009879; }}
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
             
-            /* Tooltip CSS from pandas needs to be adapted slightly */
-            .pd-tooltip {{
-                position: relative;
-                display: inline-block;
+            body {{
+                font-family: 'Roboto', sans-serif;
+                background-color: #f4f7f6;
+                color: #333;
+                margin: 20px;
             }}
-            .pd-tooltip .pd-tooltiptext {{
+            .container {{
+                max-width: 95%;
+                margin: auto;
+                background: #fff;
+                padding: 20px 40px;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            }}
+            h1, h2 {{
+                color: #2c3e50;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 10px;
+            }}
+            .table-container {{
+                overflow-x: auto; /* Makes the table scrollable horizontally */
+                width: 100%;
+            }}
+            table {{
+                border-collapse: collapse;
+                margin: 25px 0;
+                font-size: 0.9em;
+                width: 100%;
+                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            }}
+            table caption {{
+                caption-side: top;
+                font-size: 1.5em;
+                font-weight: bold;
+                margin: 1em 0 .75em;
+                color: #34495e;
+            }}
+            thead tr {{
+                background-color: #34495e;
+                color: #ffffff;
+                text-align: center;
+            }}
+            th, td {{
+                padding: 12px 15px;
+                border: 1px solid #dddddd;
+                text-align: center;
+            }}
+            tbody th {{
+                font-weight: bold;
+                background-color: #f3f3f3;
+            }}
+            tbody tr:hover {{
+                background-color: #f1f1f1;
+            }}
+
+            /* Tooltip styling from pandas Styler */
+            {html_table.split('<style type="text/css">')[1].split('</style>')[0]}
+            
+            /* Overriding default tooltip for better appearance */
+            .pd-tooltip {{
+                position:relative;
+            }}
+            .pd-tooltip .pd-tooltip-text {{
                 visibility: hidden;
-                width: 160px;
-                background-color: #555;
+                position: absolute;
+                z-index: 100;
+                width: 200px;
+                background-color: #333;
                 color: #fff;
                 text-align: left;
-                border-radius: 6px;
-                padding: 8px;
-                position: absolute;
-                z-index: 1;
-                bottom: 125%; /* Position the tooltip above the cell */
+                padding: 10px;
+                border-radius: 5px;
+                bottom: 110%;
                 left: 50%;
-                margin-left: -80px; /* Use half of the width to center */
+                margin-left: -100px;
                 opacity: 0;
                 transition: opacity 0.3s;
-                pointer-events: none; /* Allows hovering over the cell itself */
+                box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
+                pointer-events: none;
             }}
-            .pd-tooltip:hover .pd-tooltiptext {{
+            .pd-tooltip:hover .pd-tooltip-text {{
                 visibility: visible;
                 opacity: 1;
             }}
         </style>
     </head>
     <body>
-        {html_fragment}
+        <div class="container">
+            <h1>Alpha Performance Analysis</h1>
+            <p>This report summarizes alpha performance across different time intervals. The primary metric displayed is the <b>Information Ratio (IR)</b>.</p>
+            <p><em>Hover over any cell to see detailed metrics for that period.</em></p>
+            
+            <!-- Inject the table HTML generated by pandas -->
+            <div class="table-container">
+                {html_table.split('</style>')[1]}
+            </div>
+        </div>
     </body>
     </html>
     """
     
-    report_path = os.path.join(report_dir, "alpha_summary_report.html")
-    
-    with open(report_path, "w") as f:
+    report_path = os.path.join(report_dir, "alpha_summary_IR_report.html")
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(full_html)
         
     print(f"\n--- HTML Summary Report Generated at '{report_path}' ---")
