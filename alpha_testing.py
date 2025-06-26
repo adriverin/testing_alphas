@@ -51,6 +51,7 @@ if __name__ == "__main__":
         'UNH', 'HD', 'MA', 'BAC', 'PFE', 'XOM', 'CVX', 'KO', 'PEP', 'WMT',
         'META'
     ]
+
     # sp100_tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD', 'PEPE24478-USD']
     # sp100_tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD']
 

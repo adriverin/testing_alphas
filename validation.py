@@ -15,7 +15,7 @@ from src.utils import generate_date_intervals
 
 
 
-def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals, report_dir="oos_validation"):
+def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals, report_dir="reports/oos_validation"):
     """
     Runs and plots OOS validation for a given list of alphas.
     """
@@ -120,7 +120,7 @@ if __name__ == '__main__':
             is_alpha_calculator, 
             in_sample_data, 
             is_intervals,
-            report_dir="in_sample_analysis"
+            report_dir="reports/in_sample_analysis"
         )
         print("\nSUCCESS: In-Sample HTML summary report has been generated in the 'in_sample_analysis' folder.")
         print("Please review the report and choose your champion alphas for the next phase.")
