@@ -1,4 +1,4 @@
-from src.get_stock_data import get_stock_data
+from src.data_loader import get_stock_data
 from src.alpha101 import Alpha101
 from src.analysis import generate_full_report, generate_interval_report, generate_summary_html_report
 from src.utils import generate_date_intervals
@@ -76,44 +76,34 @@ if __name__ == "__main__":
     print("1. Getting real stock data...")
     price_data = get_stock_data(sp100_tickers, start_date=start, end_date=end, cache_path='stock_data.parquet')
 
-    # if not price_data.empty:
-    #     print("\n2. Initializing the Alpha101 calculator...")
-    #     alpha_calculator = Alpha101(price_data)
-        
-    #     generate_full_report(alpha_calculator, price_data, pdf_path=f'test_reports/alpha_performance_report_{start}_{end}.pdf')
-
-    # a = generate_date_intervals(start, end, 10)
-    # print(a)
-
-    # if not price_data.empty:
-    #     for start, end in generate_date_intervals(start, end, 5):
-    #         print(f"Running for {start} to {end}")
-    #         price_data = get_stock_data(sp100_tickers, start_date=start, end_date=end, cache_path='stock_data.parquet')
-    #         if not price_data.empty:
-    #             print("\n2. Initializing the Alpha101 calculator...")
-    #             alpha_calculator = Alpha101(price_data)
-    #             generate_full_report(alpha_calculator, price_data, pdf_path=f'test_reports/alpha_performance_report_{start}_{end}.pdf')
-
-
-
-
     if not price_data.empty:
         print("\n2. Initializing the Alpha101 calculator...")
         alpha_calculator = Alpha101(price_data)
         
-        # Define the intervals you want to test
-        # For example, let's split the whole period into 4 chunks
-        number_of_intervals = 20
-        intervals_to_test = generate_date_intervals(start, end, number_of_intervals)
-        
-        print(f"\nGenerated {len(intervals_to_test)} testing intervals:")
-        for s, e in intervals_to_test:
-            print(f"  - {s} to {e}")
-            
-        # Run the new interval-based report generator
-        firstAlpha = 200
-        lastAlpha = 300
-
-        generate_interval_report(alpha_calculator, price_data, intervals_to_test, first_alpha=firstAlpha, last_alpha=lastAlpha+1)
-        generate_summary_html_report(alpha_calculator, price_data, intervals_to_test, first_alpha=firstAlpha, last_alpha=lastAlpha+1)
+        firstAlpha = 1
+        lastAlpha = 105
         generate_full_report(alpha_calculator, price_data, first_alpha=firstAlpha, last_alpha=lastAlpha+1)
+
+
+
+
+    # if not price_data.empty:
+    #     print("\n2. Initializing the Alpha101 calculator...")
+    #     alpha_calculator = Alpha101(price_data)
+        
+    #     # Define the intervals you want to test
+    #     # For example, let's split the whole period into 4 chunks
+    #     number_of_intervals = 20
+    #     intervals_to_test = generate_date_intervals(start, end, number_of_intervals)
+        
+    #     print(f"\nGenerated {len(intervals_to_test)} testing intervals:")
+    #     for s, e in intervals_to_test:
+    #         print(f"  - {s} to {e}")
+            
+    #     # Run the new interval-based report generator
+    #     firstAlpha = 1
+    #     lastAlpha = 105
+
+    #     generate_interval_report(alpha_calculator, price_data, intervals_to_test, first_alpha=firstAlpha, last_alpha=lastAlpha+1)
+    #     # generate_summary_html_report(alpha_calculator, price_data, intervals_to_test, first_alpha=firstAlpha, last_alpha=lastAlpha+1)
+        

@@ -27,12 +27,10 @@ if __name__ == '__main__':
     # In-Sample / Out-of-Sample validation (Priority 1).
     # These are just examples.
     core_alphas = [
-        'alpha003',
-        'alpha041',
+        'alpha024',
         'alpha042',
-        'alpha054',
-        'alpha083',
-        'alpha101'
+        'alpha052',
+        'alpha104'
     ]
     
     print("--- Loading Full Dataset ---")

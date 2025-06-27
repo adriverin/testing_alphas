@@ -67,7 +67,7 @@ def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet
                 'Close': 'close', 'Volume': 'volume'
             }, inplace=True)
             if 'volume' in df_long.columns:
-                df_long['volume'] = df_long['volume'].astype(int)
+                df_long['volume'] = df_long['volume'].fillna(0).astype(int)
             
             final_df = df_long
             

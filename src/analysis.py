@@ -120,7 +120,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
     Calculates all implemented alphas and backtests them.
     - Adds a Buy & Hold benchmark to each plot.
     """
-    print(f"\n--- Generating Full Alpha Report to '{pdf_path}' ---")
+    print(f"\n--- Generating Full Alpha Report ---")
     
     with backend_pdf.PdfPages(pdf_path) as pdf:
         for i in range(first_alpha, last_alpha):
@@ -163,8 +163,8 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
                     pdf.savefig(fig_err)
                     plt.close(fig_err)
 
-    print("\n--- Full Alpha Report Generation Complete ---")
-
+    print("\n--- Full Alpha Report Generated at ---")
+    print(f"{pdf_path}")
 
 
 
@@ -244,7 +244,8 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
                     pdf.savefig(fig_err)
                     plt.close(fig_err)
 
-    print("\n--- Interval-Based Analysis Complete ---")
+    print("\n--- Interval-Based Analysis Generated at ---")
+    print(f"{pdf_path}")
 
 
 
@@ -482,8 +483,8 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(full_html)
         
-    print(f"\n--- HTML Summary Report Generated at '{report_path}' ---")
-
+    print(f"\n--- HTML Summary Report Generated at ---")
+    print(f"{report_path}")
 
 
 # def run_walk_forward_analysis(alpha_calculator, full_price_data, in_sample_years=3, out_of_sample_years=1):

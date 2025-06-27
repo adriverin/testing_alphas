@@ -7,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.backends import backend_pdf
 
-from src.get_stock_data import get_stock_data
+from src.data_loader import get_stock_data
 from src.alpha101 import Alpha101
 from src.analysis import generate_full_report, generate_interval_report, generate_summary_html_report, analyze_performance
 from src.backtests import run_rank_backtest
