@@ -13,12 +13,12 @@ The project is designed to be a robust, end-to-end "alpha factory," allowing a r
 
 The codebase is organized into a modular structure to promote clarity and maintainability.
 
-*   `alpha_testing.py`: The main entry point of the application. This script orchestrates the entire workflow from data loading to report generation.
+*   `main.py`: The main entry point of the application. This script orchestrates the entire workflow from data loading to report generation.
 *   `src/`: A directory containing the core logic modules.
     *   `alpha101.py`: Contains the `Alpha101` class, where all 101 alpha formulas are implemented as methods.
-    *   `get_stock_data.py`: Contains the `get_stock_data` function responsible for downloading data from Yahoo Finance (other sources will be implemented when relevant) and caching it locally using Parquet for efficient re-runs.
-    *   `analysis.py`: Contains the high-level reporting functions (`generate_interval_report`, `generate_summary_html_report`).
-    *   `backtests.py`: Contains the backtesting engines (`run_rank_backtest`, `analyze_performance`) that translate alpha signals into portfolio returns and performance metrics.
+    *   `data_loader.py`: Contains the `get_stock_data` function responsible for downloading data from Yahoo Finance (other sources will be implemented when relevant) and caching it locally using Parquet for efficient re-runs.
+    *   `reporting.py`: Contains the high-level reporting functions (`generate_interval_report`, `generate_summary_html_report`, `analyze_performance`).
+    *   `backtests.py`: Contains the backtesting engines (`run_rank_backtest`) that translate alpha signals into portfolio returns and performance metrics.
 *   `reports/`: A directory containing the analysis reports
     *   `summary_reports/`: This directory is created automatically to store the interactive HTML summary reports.
     *   `interval_reports/`: This directory is created automatically to store the detailed, per-alpha PDF reports showing performance across different time intervals.
