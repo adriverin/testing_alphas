@@ -2,9 +2,39 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends import backend_pdf
-from src.backtests import run_backtest, run_rank_backtest
-from src.alpha101 import Alpha101
+from src.backtests import run_rank_backtest
+
 import os
+
+
+
+
+
+def generate_date_intervals(start_date, end_date, n):
+    """
+    Generates n intervals of start and end dates between the given start and end date.
+    
+    Parameters:
+    start_date (str): The start date in 'YYYY-MM-DD' format.
+    end_date (str): The end date in 'YYYY-MM-DD' format.
+    n (int): The number of intervals to generate.
+    
+    Returns:
+    list of tuples: A list containing n tuples of (start, end) date intervals.
+    """
+    start_date_dt = pd.to_datetime(start_date)
+    end_date_dt = pd.to_datetime(end_date)
+    total_days = (end_date_dt - start_date_dt).days
+    interval_length = total_days // n
+    
+    intervals = []
+    for i in range(n):
+        interval_start = start_date_dt + pd.Timedelta(days=i * interval_length)
+        interval_end = start_date_dt + pd.Timedelta(days=(i + 1) * interval_length) if i < n - 1 else end_date_dt
+        intervals.append((interval_start.strftime('%Y-%m-%d'), interval_end.strftime('%Y-%m-%d')))
+    
+    return intervals
+
 
 
 def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=5):
@@ -134,17 +164,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
                         print(f"  -> Skipping {alpha_name}, no valid signals.")
                         continue
 
-                    # strategy_returns, portfolio_info = run_backtest(price_data, alpha_series, quantiles=5)
                     strategy_returns, portfolio_info = run_rank_backtest(price_data, alpha_series)
-                    
-                    # last_day_df = portfolio_info.loc[portfolio_info.index.get_level_values('date').max()]
-                    # print(last_day_df)
-
-                    # long_positions = last_day_df[last_day_df['weights'] > 0].index.tolist()
-                    # short_positions = last_day_df[last_day_df['weights'] < 0].index.tolist()
-                    # print(f"  -> Portfolio Snapshot for Last Day:")
-                    # print(f"     Longs: {long_positions}")
-                    # print(f"     Shorts: {short_positions}")
                     
                     fig = plt.figure(figsize=(11.69, 8.27))
                     
@@ -165,6 +185,8 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
 
     print("\n--- Full Alpha Report Generated at ---")
     print(f"{pdf_path}")
+
+
 
 
 
@@ -485,100 +507,3 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
         
     print(f"\n--- HTML Summary Report Generated at ---")
     print(f"{report_path}")
-
-
-# def run_walk_forward_analysis(alpha_calculator, full_price_data, in_sample_years=3, out_of_sample_years=1):
-#     """
-#     Performs a walk-forward analysis for each alpha.
-#     Generates one PDF report per alpha showing the performance in each OOS fold.
-#     """
-#     print("\n--- Starting Walk-Forward Analysis ---")
-    
-#     # Create a directory to store the reports
-#     report_dir = "walk_forward_reports"
-#     if not os.path.exists(report_dir):
-#         os.makedirs(report_dir)
-        
-#     # Get the overall date range from the data
-#     all_dates = full_price_data.index.get_level_values('date').unique()
-#     start_date = all_dates.min()
-#     end_date = all_dates.max()
-    
-#     # Define the size of our rolling windows
-#     in_sample_period = pd.DateOffset(years=in_sample_years)
-#     out_of_sample_period = pd.DateOffset(years=out_of_sample_years)
-    
-#     # Loop through each alpha in the calculator
-#     for i in range(1, 102):
-#         alpha_name = f'alpha{i:03d}'
-#         if not (hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name))):
-#             continue
-            
-#         print(f"\n--- Analyzing {alpha_name} ---")
-#         pdf_path = os.path.join(report_dir, f"{alpha_name}_walk_forward.pdf")
-        
-#         with backend_pdf.PdfPages(pdf_path) as pdf:
-#             all_oos_returns = []
-            
-#             # Define the start of the first in-sample period
-#             current_is_start = start_date
-            
-#             # "Walk" through the data
-#             while current_is_start + in_sample_period + out_of_sample_period <= end_date:
-#                 # Define the dates for the current fold
-#                 current_is_end = current_is_start + in_sample_period
-#                 current_oos_start = current_is_end + pd.DateOffset(days=1)
-#                 current_oos_end = current_oos_start + out_of_sample_period
-                
-#                 fold_title = f"OOS: {current_oos_start.date()} to {current_oos_end.date()}"
-#                 print(f"  Processing fold: {fold_title}")
-                
-#                 # Get the data for the out-of-sample period
-#                 oos_price_data = full_price_data.loc[pd.IndexSlice[current_oos_start:current_oos_end, :]]
-                
-#                 # We need to calculate the alpha on a slightly larger dataset to have enough history
-#                 # for rolling functions at the start of the OOS period.
-#                 alpha_calc_start = current_oos_start - pd.DateOffset(days=365) # 1 year buffer
-#                 alpha_calc_data = full_price_data.loc[pd.IndexSlice[alpha_calc_start:current_oos_end, :]]
-                
-#                 try:
-#                     # Calculate alpha signals for this extended period
-#                     alpha_series = getattr(Alpha101(alpha_calc_data), alpha_name)().dropna()
-#                     # Filter signals to just the OOS period
-#                     alpha_series_oos = alpha_series.loc[pd.IndexSlice[current_oos_start:current_oos_end, :]]
-
-#                     if alpha_series_oos.empty:
-#                         print("    -> No valid signals in this OOS period. Skipping fold.")
-#                         current_is_start += out_of_sample_period # Move to the next fold
-#                         continue
-                        
-#                     # Backtest on the OOS data
-#                     strategy_returns, portfolio_info = run_rank_backtest(oos_price_data, alpha_series_oos)
-#                     all_oos_returns.append(strategy_returns)
-                    
-#                     # Create and save the plot for this fold
-#                     fig = plt.figure(figsize=(11.69, 8.27))
-#                     analyze_performance(strategy_returns, portfolio_info, oos_price_data, fig=fig, title=f"{alpha_name}\n{fold_title}")
-#                     pdf.savefig(fig)
-#                     plt.close(fig)
-                    
-#                 except Exception as e:
-#                     print(f"    -> FAILED to process fold: {e}")
-#                     fig_err, ax_err = plt.subplots(figsize=(11.69, 8.27))
-#                     ax_err.text(0.5, 0.5, f'Failed to process fold\n{fold_title}\nError: {e}', ha='center', va='center', color='red')
-#                     pdf.savefig(fig_err)
-#                     plt.close(fig_err)
-
-#                 # Move the window forward by the OOS period length
-#                 current_is_start += out_of_sample_period
-            
-#             # After looping through all folds, plot the stitched results
-#             if all_oos_returns:
-#                 print("  Stitching OOS periods for overall performance plot...")
-#                 stitched_returns = pd.concat(all_oos_returns)
-#                 stitched_portfolio_info = pd.DataFrame({'turnover': stitched_returns * 0}) # Dummy for now
-                
-#                 fig_stitched = plt.figure(figsize=(11.69, 8.27))
-#                 analyze_performance(stitched_returns, stitched_portfolio_info, full_price_data, fig=fig_stitched, title=f"{alpha_name}\nOverall Stitched OOS Performance")
-#                 pdf.savefig(fig_stitched)
-#                 plt.close(fig_stitched)
