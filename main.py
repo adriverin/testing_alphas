@@ -19,25 +19,41 @@ from src.validation import run_factor_analysis, run_oos_validation_report, run_i
 # ---------------------------------------------------------------------
 # --- Central Configuration ---
 # ---------------------------------------------------------------------
-tickers = [
-    'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'NVDA', 'TSLA', 'JPM', 'JNJ', 'V', 'PG',
-    'UNH', 'HD', 'MA', 'BAC', 'PFE', 'XOM', 'CVX', 'KO', 'PEP', 'WMT'
-]
-start_date = '2015-01-01'
+# tickers = [
+#     'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'NVDA', 'TSLA', 'JPM', 'JNJ', 'V', 'PG',
+#     'UNH', 'HD', 'MA', 'BAC', 'PFE', 'XOM', 'CVX', 'KO', 'PEP', 'WMT'
+# ]
+# sp100_tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD', 'PEPE24478-USD']
+tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD']
+
+# sp100_tickers = [
+# "AAPL","ABBV","ABT","ACN","ADBE","AIG","AMD","AMGN","AMT","AMZN",
+# "AVGO","AXP","BA","BAC","BK","BKNG","BLK","BMY","C",
+# "CAT","CHTR","CL","CMCSA","COF","COP","COST","CRM","CSCO","CVS",
+# "CVX","DE","DHR","DIS","DUK","EMR","FDX","GD","GE","GILD",
+# "GM","GOOG","GOOGL","GS","HD","HON","IBM","INTC","INTU",
+# "JNJ","JPM","KO","LIN","LLY","LMT","LOW","MA","MCD","MDLZ",
+# "MDT","MET","META","MMM","MO","MRK","MS","MSFT","NFLX",
+# "NKE","NOW","NVDA","ORCL","PEP","PFE","PG","PLTR","PM",
+# "QCOM","RTX","SBUX","SCHW","SO","SPG","T","TGT","TMO","TMUS",
+# "TSLA","TXN","UNH","UNP","UPS","USB","V","VZ","WFC","WMT","XOM"
+# ]
+
+start_date = '2020-01-01'
 end_date = '2025-01-01' 
 
 # --- Define the intervals you want to test ---
-number_of_intervals = 5
+number_of_intervals = 1
 
 # --- Define the first and last alpha to test ---
-first_alpha = 1
+first_alpha = 105
 last_alpha = 105
 
 
 
 
 
-def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_intervals=number_of_intervals, first_alpha=first_alpha, last_alpha=last_alpha):
+def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_intervals=number_of_intervals, first_alpha=first_alpha, last_alpha=last_alpha+1):
     """
     Main function to orchestrate the alpha research workflow.
     """
@@ -63,7 +79,7 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
 
 
     intervals_to_test = generate_date_intervals(start_date, end_date, number_of_intervals)
-
+    # print(f"Intervals to Test: {intervals_to_test}")
 
     # --- Load Data Once ---
     print("--- Loading Full Dataset ---")
@@ -119,7 +135,7 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
         if args.analysis_type == 'combine':
             fig = plt.figure(figsize=(12, 8))
             analyze_performance(
-                strategy_returns_gross, # Pass gross returns to see both net and gross curves
+                strategy_returns_gross, 
                 portfolio_info, 
                 price_data, 
                 fig=fig, 

@@ -66,47 +66,7 @@ def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals
                 # The MatplotlibDeprecationWarning is harmless and can be ignored.
                 plt.close('all')
 
-def run_is_validation_report(alpha_calculator, price_data, alpha_list, report_dir='reports/in_sample_analysis'):
-    """
-    Runs and plots In-Sample validation for a given list of alphas.
-    """
-    print(f"\n--- Generating In-Sample Analysis Report ---")
-    
-    for alpha_name in alpha_list:
-        print(f"\nProcessing {alpha_name}...")
-        pdf_path = os.path.join(report_dir, f"{alpha_name}_in_sample_analysis.pdf")
-        if not os.path.exists(report_dir):
-            os.makedirs(report_dir)
-        
-        with backend_pdf.PdfPages(pdf_path) as pdf:
-                if hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name)):
-                    print(f"\nProcessing {alpha_name}...")
-                    try:
-                        alpha_series = getattr(alpha_calculator, alpha_name)().dropna()
-                        
-                        if alpha_series.empty:
-                            print(f"  -> Skipping {alpha_name}, no valid signals.")
-                            continue
 
-                        strategy_returns, portfolio_info = run_rank_backtest(price_data, alpha_series)
-                        
-                        fig = plt.figure(figsize=(11.69, 8.27))                    
-
-                        analyze_performance(strategy_returns, portfolio_info, price_data, fig=fig, title=alpha_name)
-                        
-                        pdf.savefig(fig)
-                        plt.close(fig)
-                        
-                    except Exception as e:
-                        # (Error handling remains the same)
-                        print(f"  -> FAILED to process {alpha_name}: {e}")
-                        fig_err, ax_err = plt.subplots(figsize=(11.69, 8.27))
-                        ax_err.text(0.5, 0.5, f'Failed to process {alpha_name}\nError: {e}', ha='center', va='center', color='red')
-                        pdf.savefig(fig_err)
-                        plt.close(fig_err)
-
-    print("\n--- Full Alpha Report Generated at ---")
-    print(f"{pdf_path}")
 
 def run_is_validation_report(alpha_calculator, full_price_data, alpha_list, interval_start_date, interval_end_date, report_dir='reports/in_sample_analysis'):
     """
