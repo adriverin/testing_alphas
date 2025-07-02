@@ -52,6 +52,53 @@ def run_backtest(price_data, alpha_series, quantiles=5):
     return strategy_returns, portfolio_info
 
 
+def run_alpha999_backtest(price_data, alpha_series):
+    """
+    Special backtest function for alpha999 that uses ML signals directly as position sizing.
+    This avoids the ranking system degeneracy for single-asset portfolios.
+    
+    Args:
+        price_data: DataFrame with price data
+        alpha_series: Series with ML signals (-1000, 0, 1000) for alpha999
+        
+    Returns:
+        tuple: (strategy_returns, portfolio_info)
+    """
+    print("--------------------------------")
+    print(f"Running alpha999 backtest with alpha_series: {alpha_series.name}")
+    print("--------------------------------")
+    # Create a DataFrame with alpha and forward returns
+    df = pd.DataFrame({
+        'alpha': alpha_series,
+        'fwd_returns': price_data['returns'].groupby(level='asset').shift(-1)
+    })
+    df.dropna(inplace=True)
+
+    if df.empty:
+        return pd.Series(dtype=float), pd.DataFrame(columns=['weights', 'turnover'])
+
+    # Convert ML signals directly to position sizes
+    # -1000 -> -1 (short), 0 -> 0 (neutral), 1000 -> 1 (long)
+    df['ml_signal'] = df['alpha'] / 1000.0  # Convert back to -1, 0, 1
+    
+    # Use ML signals directly as weights (no ranking needed)
+    df['weights'] = df['ml_signal'].copy()
+    
+    # For single asset, we can use the signal directly as position size
+    # No normalization needed since we're not doing cross-sectional ranking
+    
+    # Calculate Strategy Returns
+    strategy_returns = df.groupby(level='date').apply(lambda x: (x['weights'] * x['fwd_returns']).sum())
+
+    # Calculate Turnover
+    df['weights_change'] = (df['weights'] - df.groupby(level='asset')['weights'].shift(1)).fillna(df['weights'])
+    daily_turnover = df['weights_change'].abs().groupby(level='date').sum() / 2.0
+    daily_turnover.name = 'turnover'
+
+    portfolio_info = df[['weights']].copy()
+    portfolio_info = portfolio_info.join(daily_turnover, on='date')
+    
+    return strategy_returns, portfolio_info
 
 
 def run_rank_backtest(price_data, alpha_series):
@@ -59,6 +106,11 @@ def run_rank_backtest(price_data, alpha_series):
     Runs a dollar-neutral, long-short backtest using rank-based weighting.
     This version includes the fix for the pandas FutureWarning.
     """
+    # Special handling for alpha999
+    if alpha_series.name == 'alpha999' or (alpha_series.abs() > 110).any():
+        print("Detected alpha999 signals - using special ML backtest")
+        return run_alpha999_backtest(price_data, alpha_series)
+    
     # Create a DataFrame with alpha and forward returns
     df = pd.DataFrame({
         'alpha': alpha_series,

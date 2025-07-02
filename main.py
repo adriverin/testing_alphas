@@ -25,7 +25,7 @@ from src.validation import run_factor_analysis, run_oos_validation_report, run_i
 # ]
 # sp100_tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD', 'PEPE24478-USD']
 tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD']
-
+tickers = ['BTC-USD']
 # sp100_tickers = [
 # "AAPL","ABBV","ABT","ACN","ADBE","AIG","AMD","AMGN","AMT","AMZN",
 # "AVGO","AXP","BA","BAC","BK","BKNG","BLK","BMY","C",
@@ -39,15 +39,15 @@ tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD', 'LTC-USD', 'B
 # "TSLA","TXN","UNH","UNP","UPS","USB","V","VZ","WFC","WMT","XOM"
 # ]
 
-start_date = '2020-01-01'
-end_date = '2025-01-01' 
+start_date = '2024-01-01'
+end_date = '2025-06-30' 
 
 # --- Define the intervals you want to test ---
 number_of_intervals = 1
 
 # --- Define the first and last alpha to test ---
-first_alpha = 105
-last_alpha = 105
+first_alpha = 999
+last_alpha = 999
 
 
 

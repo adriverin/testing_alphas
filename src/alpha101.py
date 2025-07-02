@@ -1007,10 +1007,126 @@ class Alpha101:
         return momentum_component - reversion_component
 
 
+    def alpha999(self):
+        """
+        Alpha#999: ML-Based Threshold Trading Signal
+        
+        This alpha uses a pre-trained machine learning model to generate trading signals
+        based on probability thresholds. For single-asset portfolios, it uses the ML signals
+        directly as position sizes to avoid the ranking-based backtesting degeneracy.
+        
+        The alpha loads:
+        1. A trained ML model from artefacts/return_model.pt
+        2. Pre-computed trading signals from artefacts/trading_signals_threshold_40.parquet
+        
+        Returns:
+            pd.Series: Trading signals (-1, 0, 1) amplified for single-asset portfolios
+        """
+        from pathlib import Path
+        import torch
+        
+        # Define paths for model artifacts
+        artifacts_dir = Path("artefacts")
+        signals_path = artifacts_dir / "trading_signals_threshold_40.parquet"
+        
+        # Check if signals file exists
+        if not signals_path.exists():
+            print(f"Warning: ML signals file not found at {signals_path}")
+            print("Please run 'python src/ml_forecast_prob_dist.py' first to generate the signals.")
+            # Return neutral signals as fallback
+            result = pd.Series(0.0, index=self.df.index)
+            result.name = 'alpha999'
+            return result
+        
+        try:
+            # Load pre-computed trading signals
+            signals_df = pd.read_parquet(signals_path)
+            ml_signals = signals_df['signal']
+            
+            print(f"Alpha999: Loaded {len(ml_signals)} ML trading signals")
+            print(f"ML signals date range: {ml_signals.index.min()} to {ml_signals.index.max()}")
+            print(f"Portfolio date range: {self.df.index.get_level_values('date').min()} to {self.df.index.get_level_values('date').max()}")
+            
+            # Get unique dates and assets from current dataframe
+            portfolio_dates = self.df.index.get_level_values('date').unique()
+            portfolio_assets = self.df.index.get_level_values('asset').unique()
+            
+            # Check if this is a single-asset portfolio
+            is_single_asset = len(portfolio_assets) == 1
+            
+            # Create a mapping of signals to dates using string comparison to avoid timezone issues
+            result_data = []
+            
+            # Convert ML signals to a date->signal mapping using date strings
+            ml_signals_by_date = {}
+            for idx, signal in ml_signals.items():
+                date_str = idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10]
+                ml_signals_by_date[date_str] = signal
+            
+            print(f"Alpha999: Created signal mapping with {len(ml_signals_by_date)} unique dates")
+            
+            for date in portfolio_dates:
+                # Convert portfolio date to string for comparison
+                date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)[:10]
+                
+                # Look for exact match first, then closest previous date
+                signal_value = 0.0
+                if date_str in ml_signals_by_date:
+                    signal_value = ml_signals_by_date[date_str]
+                else:
+                    # Find closest previous date
+                    available_dates = [d for d in ml_signals_by_date.keys() if d <= date_str]
+                    if available_dates:
+                        closest_date = max(available_dates)
+                        signal_value = ml_signals_by_date[closest_date]
+                
+                # Always amplify signals for alpha999 detection and proper backtesting
+                # This ensures that -1, 0, 1 signals translate to meaningful position changes
+                # and triggers the custom alpha999 backtest function
+                signal_value = signal_value * 1000.0
+                
+                # Apply same signal to all assets for this date
+                for asset in portfolio_assets:
+                    if (date, asset) in self.df.index:
+                        result_data.append(((date, asset), signal_value))
+            
+            # Create the result series
+            if result_data:
+                index_tuples, signal_values = zip(*result_data)
+                multi_index = pd.MultiIndex.from_tuples(index_tuples, names=['date', 'asset'])
+                result = pd.Series(signal_values, index=multi_index)
+            else:
+                # Fallback: return neutral signals
+                result = pd.Series(0.0, index=self.df.index)
+                result.name = 'alpha999'
+            
+            # Final alignment check
+            result = result.reindex(self.df.index).fillna(0.0)
+            
+            # Set the series name for proper detection
+            result.name = 'alpha999'
+            
+            signal_counts = result.value_counts()
+            print(f"Alpha999 signal distribution: {dict(signal_counts)}")
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error in Alpha999: {e}")
+            import traceback
+            traceback.print_exc()
+            print("Returning neutral signals as fallback.")
+            result = pd.Series(0.0, index=self.df.index)
+            result.name = 'alpha999'
+            return result
+
     def get_all_alphas(self):
         """Calculates all implemented alpha functions and returns them in a DataFrame."""
         all_alphas = {}
-        for i in range(1, 104):
+        # Include alpha999 in the range
+        alpha_ranges = list(range(1, 106)) + [999]
+        
+        for i in alpha_ranges:
             alpha_name = f'alpha{i:03d}'
             if hasattr(self, alpha_name):
                 try:
