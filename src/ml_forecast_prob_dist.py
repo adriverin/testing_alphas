@@ -49,9 +49,9 @@ random.seed(SEED)
 
 @dataclass
 class Config:
-    symbol: str = "BTC-USD"
-    start: str = "2015-01-01"
-    end: str = "2024-01-01"
+    symbol: str = "PEPE-USD"
+    start: str = "2023-06-01"
+    end: str = "2025-01-01"
     interval: str = "1d"
     forecast_horizon_hours: int = 24  # 1 day ahead prediction
     vol_window_hours: int = 240       # 10 days for volatility estimation
@@ -62,7 +62,7 @@ class Config:
     rsi_windows = (48, 96, 144, 192)     # hours → 2d, 4d, 6d, 8d (for daily bars)
 
     n_quantiles: int = 5
-    test_fraction: float = 0.020 # percentage of data used for testing 
+    test_fraction: float = 0.20 # percentage of data used for testing 
     batch_size: int = 256
     lr: float = 5e-5           # reduced learning rate to prevent divergence
     weight_decay: float = 1e-4

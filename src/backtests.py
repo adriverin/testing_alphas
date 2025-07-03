@@ -55,7 +55,7 @@ def run_backtest(price_data, alpha_series, quantiles=5):
 def run_alpha999_backtest(price_data, alpha_series):
     """
     Special backtest function for alpha999 that uses ML signals directly as position sizing.
-    This avoids the ranking system degeneracy for single-asset portfolios.
+    This properly interprets ML signals as position changes and holds positions until the next signal.
     
     Args:
         price_data: DataFrame with price data
@@ -67,36 +67,46 @@ def run_alpha999_backtest(price_data, alpha_series):
     print("--------------------------------")
     print(f"Running alpha999 backtest with alpha_series: {alpha_series.name}")
     print("--------------------------------")
-    # Create a DataFrame with alpha and forward returns
-    df = pd.DataFrame({
-        'alpha': alpha_series,
-        'fwd_returns': price_data['returns'].groupby(level='asset').shift(-1)
-    })
-    df.dropna(inplace=True)
-
-    if df.empty:
-        return pd.Series(dtype=float), pd.DataFrame(columns=['weights', 'turnover'])
-
+    
     # Convert ML signals directly to position sizes
     # -1000 -> -1 (short), 0 -> 0 (neutral), 1000 -> 1 (long)
-    df['ml_signal'] = df['alpha'] / 1000.0  # Convert back to -1, 0, 1
+    ml_signals = alpha_series / 1000.0  # Convert back to -1, 0, 1
     
-    # Use ML signals directly as weights (no ranking needed)
-    df['weights'] = df['ml_signal'].copy()
+    # Get the underlying asset returns for holding period calculation
+    asset_returns = price_data['returns']
     
-    # For single asset, we can use the signal directly as position size
-    # No normalization needed since we're not doing cross-sectional ranking
+    # FIXED LOGIC: Interpret ML signals as position targets that should be held
+    # When we get a non-zero signal, hold that position until next non-zero signal
+    positions = pd.Series(0.0, index=ml_signals.index)
     
-    # Calculate Strategy Returns
-    strategy_returns = df.groupby(level='date').apply(lambda x: (x['weights'] * x['fwd_returns']).sum())
-
-    # Calculate Turnover
-    df['weights_change'] = (df['weights'] - df.groupby(level='asset')['weights'].shift(1)).fillna(df['weights'])
-    daily_turnover = df['weights_change'].abs().groupby(level='date').sum() / 2.0
+    for asset in ml_signals.index.get_level_values('asset').unique():
+        asset_signals = ml_signals.xs(asset, level='asset')
+        current_position = 0.0
+        
+        for date, signal in asset_signals.items():
+            if signal != 0.0:
+                # Non-zero signal: change position
+                current_position = signal
+            # Always set the current position (whether it changed or not)
+            positions.loc[(date, asset)] = current_position
+    
+    # Strategy returns = position * asset return for each day
+    # This properly accounts for holding period returns
+    strategy_returns_by_asset = positions * asset_returns
+    
+    # Aggregate across assets (for multi-asset portfolios)
+    strategy_returns = strategy_returns_by_asset.groupby(level='date').sum()
+    
+    # Calculate turnover based on position changes
+    position_changes = positions.groupby(level='asset').diff().fillna(positions)
+    daily_turnover = position_changes.abs().groupby(level='date').sum() / 2.0
     daily_turnover.name = 'turnover'
-
-    portfolio_info = df[['weights']].copy()
-    portfolio_info = portfolio_info.join(daily_turnover, on='date')
+    
+    # Create portfolio info
+    portfolio_info = pd.DataFrame({
+        'weights': positions,
+        'turnover': daily_turnover.reindex(positions.index, level='date')
+    })
     
     return strategy_returns, portfolio_info
 
