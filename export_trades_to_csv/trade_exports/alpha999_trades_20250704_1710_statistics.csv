@@ -1,0 +1,17 @@
+Metric,Value
+Total_Trades,44.0
+Winning_Trades,15.0
+Losing_Trades,29.0
+Win_Rate_Percent,34.090909090909086
+Average_Win_Percent,12.753129906520888
+Average_Loss_Percent,-8.793299976410484
+Profit_Factor,0.7501673457142322
+Average_Days_Held,20.318181818181817
+Best_Trade_Percent,57.20742138592425
+Worst_Trade_Percent,-22.851474538189287
+Long_Trades,22.0
+Long_Win_Rate,27.27272727272727
+Short_Trades,22.0
+Short_Win_Rate,40.909090909090914
+Total_PnL_Percent,-63.708750718090734
+Total_Weight_Impact,-0.6370875071809072
