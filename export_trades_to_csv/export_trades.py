@@ -9,7 +9,7 @@ Usage:
     python export_trades.py [alpha_name] [--all-alphas]
 
 Examples:
-    python export_trades.py alpha999
+    python export_trades.py alpha998
     python export_trades.py alpha003
     python export_trades.py --all-alphas
 """
@@ -27,8 +27,8 @@ from src.trade_export import export_backtest_trades
 
 def main():
     parser = argparse.ArgumentParser(description="Export backtest trades to spreadsheet")
-    parser.add_argument("alpha_name", nargs="?", default="alpha999", 
-                       help="Alpha to analyze (default: alpha999)")
+    parser.add_argument("alpha_name", nargs="?", default="alpha998", 
+                       help="Alpha to analyze (default: alpha998)")
     parser.add_argument("--all-alphas", action="store_true",
                        help="Export trades for all available alphas")
     parser.add_argument("--output-dir", default="trade_exports",
