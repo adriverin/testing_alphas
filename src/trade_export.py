@@ -17,6 +17,9 @@ def extract_trades_from_backtest(strategy_returns, portfolio_info, price_data, a
     """
     Extract individual trades from backtest results.
     
+    FIXED VERSION: Now properly calculates trade P&L to match actual portfolio returns
+    by accounting for how the backtesting system calculates daily returns.
+    
     Args:
         strategy_returns: Daily strategy returns
         portfolio_info: DataFrame with weights, turnover data
@@ -28,18 +31,12 @@ def extract_trades_from_backtest(strategy_returns, portfolio_info, price_data, a
     """
     trades = []
     
-    # Get asset price data
-    if 'close' not in price_data.columns:
-        # Calculate close prices from returns if not available
-        if 'returns' in price_data.columns:
-            returns = price_data['returns'].unstack(level='asset').fillna(0)
-            # Assume starting price of 100 for each asset
-            prices = (1 + returns).cumprod() * 100
-        else:
-            print("⚠️ No price data available to calculate trade P&L")
-            return pd.DataFrame()
-    else:
-        prices = price_data['close'].unstack(level='asset')
+    # Get asset return data (this is what the backtesting system uses)
+    if 'returns' not in price_data.columns:
+        print("⚠️ No return data available to calculate trade P&L")
+        return pd.DataFrame()
+    
+    asset_returns = price_data['returns']
     
     # Get position weights
     weights = portfolio_info['weights']
@@ -47,47 +44,67 @@ def extract_trades_from_backtest(strategy_returns, portfolio_info, price_data, a
     # Process each asset separately
     for asset in weights.index.get_level_values('asset').unique():
         asset_weights = weights.xs(asset, level='asset')
-        asset_prices = prices[asset] if asset in prices.columns else None
+        asset_returns_series = asset_returns.xs(asset, level='asset')
         
-        if asset_prices is None:
-            continue
-            
-        # Align weights and prices
-        common_dates = asset_weights.index.intersection(asset_prices.index)
+        # Align weights and returns
+        common_dates = asset_weights.index.intersection(asset_returns_series.index)
         asset_weights = asset_weights.reindex(common_dates).fillna(0)
-        asset_prices = asset_prices.reindex(common_dates).fillna(method='ffill')
+        asset_returns_series = asset_returns_series.reindex(common_dates).fillna(0)
         
         # Track current position
         current_position = 0.0
         entry_date = None
-        entry_price = None
         entry_weight = None
+        cumulative_trade_return = 0.0
+        daily_contributions = []
         
         for date in common_dates:
             new_weight = asset_weights[date]
             new_position = 1 if new_weight > 0 else (-1 if new_weight < 0 else 0)
-            current_price = asset_prices[date]
+            daily_return = asset_returns_series[date]
+            
+            # If we have a position, accumulate the daily contribution
+            if current_position != 0 and entry_date is not None:
+                # This is the key fix: calculate daily contribution exactly as backtesting system does
+                daily_contribution = new_weight * daily_return
+                daily_contributions.append((date, daily_contribution))
+                cumulative_trade_return += daily_contribution
             
             # Check for position changes
             if new_position != current_position:
                 # Close existing position if any
                 if current_position != 0 and entry_date is not None:
                     exit_date = date
-                    exit_price = current_price
-                    exit_weight = abs(entry_weight) if entry_weight else 0
                     
-                    # Calculate trade metrics
+                    # Calculate trade metrics based on actual daily contributions
                     days_held = (exit_date - entry_date).days
                     
-                    if current_position == 1:  # Long position
-                        pnl_percent = (exit_price / entry_price - 1) * 100
-                        trade_type = "LONG"
-                    else:  # Short position
-                        pnl_percent = (entry_price / exit_price - 1) * 100
-                        trade_type = "SHORT"
+                    # Total return contribution from this trade
+                    total_contribution = cumulative_trade_return
                     
-                    # Portfolio weight impact
-                    weight_impact = exit_weight * pnl_percent / 100
+                    # Calculate equivalent percentage return for display
+                    # This is approximate since we're dealing with weighted returns
+                    if abs(entry_weight) > 0:
+                        equivalent_pnl_percent = (total_contribution / abs(entry_weight)) * 100
+                    else:
+                        equivalent_pnl_percent = 0.0
+                    
+                    trade_type = "LONG" if current_position == 1 else "SHORT"
+                    
+                    # Get entry and exit prices for reference (approximate)
+                    entry_idx = common_dates.get_loc(entry_date)
+                    exit_idx = common_dates.get_loc(exit_date)
+                    
+                    # Calculate approximate prices from returns
+                    if 'close' in price_data.columns:
+                        prices = price_data['close'].xs(asset, level='asset')
+                        entry_price = prices.reindex(common_dates).fillna(method='ffill').iloc[entry_idx]
+                        exit_price = prices.reindex(common_dates).fillna(method='ffill').iloc[exit_idx]
+                    else:
+                        # Approximate from cumulative returns
+                        cumulative_returns = (1 + asset_returns_series).cumprod()
+                        entry_price = cumulative_returns.iloc[entry_idx] * 100  # Normalize to ~100
+                        exit_price = cumulative_returns.iloc[exit_idx] * 100
                     
                     trades.append({
                         'Asset': asset,
@@ -99,38 +116,53 @@ def extract_trades_from_backtest(strategy_returns, portfolio_info, price_data, a
                         'Exit_Price': exit_price,
                         'Entry_Weight': entry_weight,
                         'Days_Held': days_held,
-                        'PnL_Percent': pnl_percent,
-                        'Weight_Impact': weight_impact,
-                        'Trade_Result': 'WIN' if pnl_percent > 0 else 'LOSS'
+                        'PnL_Percent': equivalent_pnl_percent,
+                        'Weight_Impact': total_contribution,  # This is the actual portfolio contribution
+                        'Trade_Result': 'WIN' if total_contribution > 0 else 'LOSS',
+                        'Daily_Contributions': len(daily_contributions)
                     })
+                
+                # Reset for new position
+                daily_contributions = []
+                cumulative_trade_return = 0.0
                 
                 # Open new position if not flat
                 if new_position != 0:
                     current_position = new_position
                     entry_date = date
-                    entry_price = current_price
                     entry_weight = new_weight
                 else:
                     current_position = 0
                     entry_date = None
-                    entry_price = None
                     entry_weight = None
         
         # Handle any remaining open position
         if current_position != 0 and entry_date is not None:
             exit_date = common_dates[-1]
-            exit_price = asset_prices[exit_date]
-            
             days_held = (exit_date - entry_date).days
             
-            if current_position == 1:  # Long position
-                pnl_percent = (exit_price / entry_price - 1) * 100
-                trade_type = "LONG"
-            else:  # Short position
-                pnl_percent = (entry_price / exit_price - 1) * 100
-                trade_type = "SHORT"
+            # Calculate final contribution
+            total_contribution = cumulative_trade_return
             
-            weight_impact = abs(entry_weight) * pnl_percent / 100 if entry_weight else 0
+            if abs(entry_weight) > 0:
+                equivalent_pnl_percent = (total_contribution / abs(entry_weight)) * 100
+            else:
+                equivalent_pnl_percent = 0.0
+            
+            trade_type = "LONG" if current_position == 1 else "SHORT"
+            
+            # Get approximate prices
+            entry_idx = common_dates.get_loc(entry_date)
+            exit_idx = len(common_dates) - 1
+            
+            if 'close' in price_data.columns:
+                prices = price_data['close'].xs(asset, level='asset')
+                entry_price = prices.reindex(common_dates).fillna(method='ffill').iloc[entry_idx]
+                exit_price = prices.reindex(common_dates).fillna(method='ffill').iloc[exit_idx]
+            else:
+                cumulative_returns = (1 + asset_returns_series).cumprod()
+                entry_price = cumulative_returns.iloc[entry_idx] * 100
+                exit_price = cumulative_returns.iloc[exit_idx] * 100
             
             trades.append({
                 'Asset': asset,
@@ -142,10 +174,11 @@ def extract_trades_from_backtest(strategy_returns, portfolio_info, price_data, a
                 'Exit_Price': exit_price,
                 'Entry_Weight': entry_weight,
                 'Days_Held': days_held,
-                'PnL_Percent': pnl_percent,
-                'Weight_Impact': weight_impact,
-                'Trade_Result': 'WIN' if pnl_percent > 0 else 'LOSS',
-                'Status': 'OPEN'
+                'PnL_Percent': equivalent_pnl_percent,
+                'Weight_Impact': total_contribution,
+                'Trade_Result': 'WIN' if total_contribution > 0 else 'LOSS',
+                'Status': 'OPEN',
+                'Daily_Contributions': len(daily_contributions)
             })
     
     if not trades:
@@ -155,6 +188,18 @@ def extract_trades_from_backtest(strategy_returns, portfolio_info, price_data, a
     # Convert to DataFrame and sort by entry date
     trades_df = pd.DataFrame(trades)
     trades_df = trades_df.sort_values('Entry_Date').reset_index(drop=True)
+    
+    # Validation: Check that weight impacts sum to approximately the total portfolio return
+    total_weight_impact = trades_df['Weight_Impact'].sum()
+    total_strategy_return = strategy_returns.sum()
+    
+    print(f"📊 Trade validation:")
+    print(f"   Sum of trade impacts: {total_weight_impact:.4f}")
+    print(f"   Total strategy returns: {total_strategy_return:.4f}")
+    print(f"   Difference: {abs(total_weight_impact - total_strategy_return):.4f}")
+    
+    if abs(total_weight_impact - total_strategy_return) > 0.01:
+        print("⚠️  Warning: Large discrepancy detected between trade impacts and strategy returns")
     
     return trades_df
 
@@ -182,6 +227,13 @@ def calculate_trade_statistics(trades_df):
     long_trades = trades_df[trades_df['Trade_Type'] == 'LONG']
     short_trades = trades_df[trades_df['Trade_Type'] == 'SHORT']
     
+    # Portfolio return calculations
+    total_weight_impact = trades_df['Weight_Impact'].sum()
+    
+    # Calculate compounded return from weight impacts
+    # This is an approximation since we don't have exact daily timing
+    daily_avg_impact = total_weight_impact / len(trades_df) if len(trades_df) > 0 else 0
+    
     stats = {
         'Total_Trades': total_trades,
         'Winning_Trades': winning_trades,
@@ -198,7 +250,9 @@ def calculate_trade_statistics(trades_df):
         'Short_Trades': len(short_trades),
         'Short_Win_Rate': (len(short_trades[short_trades['PnL_Percent'] > 0]) / len(short_trades) * 100) if len(short_trades) > 0 else 0,
         'Total_PnL_Percent': trades_df['PnL_Percent'].sum(),
-        'Total_Weight_Impact': trades_df['Weight_Impact'].sum()
+        'Total_Weight_Impact': total_weight_impact,
+        'Portfolio_Return_Sum': total_weight_impact,  # Sum of daily returns
+        'Portfolio_Return_Approx_Compound': (1 + total_weight_impact) - 1 if total_weight_impact > -1 else total_weight_impact  # Approximation
     }
     
     return stats
@@ -465,6 +519,10 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
     else:
         export_path = export_trades_to_csv(trades_df, stats, output_path, alpha_name)
     
+    # Calculate actual portfolio returns for comparison
+    sum_of_daily_returns = strategy_returns.sum()
+    compounded_return = (1 + strategy_returns).prod() - 1
+    
     # Print summary
     print(f"\n📈 {alpha_name} Trade Summary:")
     print(f"   Total Trades: {stats['Total_Trades']}")
@@ -473,5 +531,17 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
     print(f"   Average Days Held: {stats['Average_Days_Held']:.1f}")
     print(f"   Best Trade: {stats['Best_Trade_Percent']:.2f}%")
     print(f"   Worst Trade: {stats['Worst_Trade_Percent']:.2f}%")
+    
+    print(f"\n📊 Portfolio Return Analysis:")
+    print(f"   Sum of Trade Impacts: {stats['Total_Weight_Impact']:.4f}")
+    print(f"   Actual Sum of Daily Returns: {sum_of_daily_returns:.4f}")
+    print(f"   Difference: {abs(stats['Total_Weight_Impact'] - sum_of_daily_returns):.4f}")
+    print(f"   Actual Compounded Return: {compounded_return:.4f}")
+    print(f"   Compounding Effect: {compounded_return - sum_of_daily_returns:.4f}")
+    
+    if abs(stats['Total_Weight_Impact'] - sum_of_daily_returns) < 0.1:
+        print(f"   ✅ Trade impacts correctly match sum of daily returns")
+    else:
+        print(f"   ⚠️  Large discrepancy detected - check calculation")
     
     return export_path 

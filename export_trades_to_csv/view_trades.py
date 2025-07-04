@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 def main():
-    export_dir = Path("trade_exports")
+    export_dir = Path("export_trades_to_csv/trade_exports")
     
     if not export_dir.exists():
         print("❌ No trade_exports directory found. Run export_trades.py first.")

@@ -45,7 +45,7 @@ start_date = '2024-03-31'
 end_date = '2025-06-30' 
 
 # --- Define the intervals you want to test ---
-number_of_intervals = 9
+number_of_intervals = 1
 
 # --- Define the first and last alpha to test ---
 first_alpha = 998

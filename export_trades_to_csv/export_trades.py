@@ -31,8 +31,8 @@ def main():
                        help="Alpha to analyze (default: alpha998)")
     parser.add_argument("--all-alphas", action="store_true",
                        help="Export trades for all available alphas")
-    parser.add_argument("--output-dir", default="trade_exports",
-                       help="Output directory for trade files (default: trade_exports)")
+    parser.add_argument("--output-dir", default="export_trades_to_csv/trade_exports",
+                       help="Output directory for trade files (default: export_trades_to_csv/trade_exports)")
     parser.add_argument("--format", choices=["csv", "excel"], default="excel",
                        help="Export format: csv or excel (default: excel)")
     
@@ -46,7 +46,7 @@ def main():
         tickers = ['BTC-USD', 'ETH-USD']
         start_date = '2024-03-31'
         end_date = '2025-06-30'
-        
+
         price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)
         alpha_calculator = Alpha101(price_data)
         print(f"✅ Data loaded successfully: {len(price_data)} rows")
@@ -56,7 +56,7 @@ def main():
     
     # Create output directory
     output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     if args.all_alphas:
         print("📊 Exporting trades for all available alphas...")
