@@ -1,0 +1,93 @@
+{
+  "config": {
+    "symbol": "ETH-USD",
+    "start": "2020-01-01",
+    "end": "2023-10-31",
+    "interval": "1d",
+    "forecast_horizon_hours": 24,
+    "vol_window_hours": 240,
+    "n_quantiles": 5,
+    "test_fraction": 0.2,
+    "batch_size": 256,
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "n_epochs": 30,
+    "hidden_sizes": [
+      64,
+      32,
+      16
+    ],
+    "cache_dir": "artefacts",
+    "plot_rel": true,
+    "device": "cpu",
+    "verbose": false,
+    "threshold": 0.4,
+    "min_train_samples": 500,
+    "validation_months": 6,
+    "walk_forward_step": 30,
+    "feature_stability_window": 90,
+    "max_feature_drift": 0.3,
+    "enable_regime_features": true,
+    "volatility_regime_window": 60,
+    "n_ensemble_models": 3
+  },
+  "quantile_edges": [
+    -0.7226746995501693,
+    -0.1803997371061633,
+    0.29979866583815,
+    0.9427587916592318
+  ],
+  "feature_names": [
+    "sma_2d",
+    "sma_5d",
+    "sma_10d",
+    "sma_20d",
+    "sma_30d",
+    "vol_5d",
+    "vol_10d",
+    "vol_20d",
+    "mom_1d",
+    "mom_3d",
+    "mom_7d",
+    "mom_14d",
+    "rsi_7d",
+    "rsi_14d",
+    "rsi_21d",
+    "vol_regime",
+    "trend_regime",
+    "momentum_regime"
+  ],
+  "train_period": [
+    "2020-01-03 00:00:00+00:00",
+    "2023-04-13 00:00:00+00:00"
+  ],
+  "val_period": [
+    "2023-04-15 00:00:00+00:00",
+    "2024-05-17 00:00:00+00:00"
+  ],
+  "test_period": [
+    "2024-05-19 00:00:00+00:00",
+    "2025-06-21 00:00:00+00:00"
+  ],
+  "full_period": [
+    "2020-01-03 00:00:00+00:00",
+    "2025-06-21 00:00:00+00:00"
+  ],
+  "signal_distribution": {
+    "0": 1395,
+    "1": 300,
+    "-1": 300
+  },
+  "test_signal_distribution": {
+    "0": 359,
+    "1": 20,
+    "-1": 20
+  },
+  "direction_used": "reversed",
+  "prediction_correlation": 0.1005220596623618,
+  "signal_correlations": {
+    "original": -0.03898358927647239,
+    "reversed": 0.03898358927647239
+  },
+  "suspicious_features": []
+}

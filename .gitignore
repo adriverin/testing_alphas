@@ -1,2 +1,7 @@
 noncommited/
 noncommited/*
+Questions_to_llm.md
+run_validation.py
+run_simple_validation.py
+src/ml_forecast_improved.py
+src/validation_enhanced.py

@@ -19,7 +19,7 @@ The file is ready to `python ml_forecast_prob_dist.py` – it will download data
 train the model, print metrics and save artefacts.  Use it as a starting point
 for deeper experimentation or back-testing.
 
-Author: OpenAI ChatGPT-o3 – 2025-07-02
+Author: OpenAI ChatGPT-o3 & Anthropic Claude 4 Sonnet – 2025-07-02 
 Licence: MIT
 """
 
@@ -49,9 +49,9 @@ random.seed(SEED)
 
 @dataclass
 class Config:
-    symbol: str = "PEPE-USD"
-    start: str = "2023-06-01"
-    end: str = "2025-01-01"
+    symbol: str = "BTC-USD"
+    start: str = "2015-01-01"
+    end: str = "2024-01-01"
     interval: str = "1d"
     forecast_horizon_hours: int = 24  # 1 day ahead prediction
     vol_window_hours: int = 240       # 10 days for volatility estimation
@@ -427,8 +427,10 @@ def generate_trading_signals(model, ds, cfg, threshold=0.4):
     
     # Use percentile-based thresholds for signal generation
     # Take top and bottom 5% of predictions as signals
-    top_threshold = np.percentile(extreme_preference, 95)
-    bottom_threshold = np.percentile(extreme_preference, 5)
+    top_threshold = np.percentile(extreme_preference, 75)
+    bottom_threshold = np.percentile(extreme_preference, 25)
+    # top_threshold = np.percentile(extreme_preference, 95)
+    # bottom_threshold = np.percentile(extreme_preference, 5)
     
     signals = []
     for score in extreme_preference:

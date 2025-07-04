@@ -147,7 +147,7 @@ def generate_date_intervals(start_date, end_date, n):
 
 
 
-def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=5):
+def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=50):
     """
     Calculates performance metrics and creates a 3-panel plot on a given figure.
     - Top panel: Cumulative Returns (Equity Curve) vs. Benchmark.

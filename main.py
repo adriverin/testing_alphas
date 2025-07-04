@@ -15,7 +15,6 @@ from src.validation import run_factor_analysis, run_oos_validation_report, run_i
 
 
 
-
 # ---------------------------------------------------------------------
 # --- Central Configuration ---
 # ---------------------------------------------------------------------
@@ -25,7 +24,7 @@ from src.validation import run_factor_analysis, run_oos_validation_report, run_i
 # ]
 # sp100_tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD', 'PEPE24478-USD']
 # tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD']
-tickers = ['PEPE-USD']
+
 # sp100_tickers = [
 # "AAPL","ABBV","ABT","ACN","ADBE","AIG","AMD","AMGN","AMT","AMZN",
 # "AVGO","AXP","BA","BAC","BK","BKNG","BLK","BMY","C",
@@ -39,15 +38,18 @@ tickers = ['PEPE-USD']
 # "TSLA","TXN","UNH","UNP","UPS","USB","V","VZ","WFC","WMT","XOM"
 # ]
 
-start_date = '2025-01-01'
+# tickers = ['BTC-USD']
+tickers = ['BTC-USD', 'ETH-USD']
+
+start_date = '2024-03-31'
 end_date = '2025-06-30' 
 
 # --- Define the intervals you want to test ---
-number_of_intervals = 1
+number_of_intervals = 9
 
 # --- Define the first and last alpha to test ---
-first_alpha = 999
-last_alpha = 999
+first_alpha = 998
+last_alpha = 998
 
 
 
@@ -119,7 +121,7 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
         print("\n--- Generating and Backtesting Combined Alpha ---")
         
         # This is your basket of "champion" alphas, selected from your research
-        core_alphas = ['alpha003', 'alpha041', 'alpha042', 'alpha054', 'alpha083', 'alpha101']
+        core_alphas = ['alpha999']
         
         mega_alpha_signal = combine_alphas(alpha_calculator, core_alphas)
         
@@ -154,3 +156,5 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
 
 if __name__ == '__main__':
     main()
+    # for i in range(200, 210):
+    #     os.system(f"open reports/interval_reports/alpha{i}_interval_report.pdf")

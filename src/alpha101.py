@@ -128,24 +128,66 @@ class Alpha101:
     # ----------------------------------------------------------------
     
     def alpha001(self):
-        """Alpha#1: (rank(Ts_ArgMax(SignedPower(((returns < 0) ? stddev(returns, 20) : close), 2.), 5)) - 0.5)"""
+        """Alpha#1: (rank(Ts_ArgMax(SignedPower(((returns < 0) ? stddev(returns, 20) : close), 2.), 5)) - 0.5)
+        
+        What is this alpha trying to capture?
+        Key intuition:
+        - It’s a timing signal: How recently did we see a peak in either price (if performing okay) 
+          or volatility (if performing poorly)?
+        - If price or volatility peaked more recently → higher rank.
+        - The idea is: stocks where price or volatility has just peaked may have predictive power 
+          for near-term future returns (maybe mean-reversion or momentum depending on context).
+        Market logic:
+        - When returns are bad, you're looking at volatility — perhaps assuming volatility spikes can mean-revert.
+        - When returns are good or flat, you're focusing on price behavior — maybe momentum or mean-reversion on price peaks.
+        - By ranking this, you’re trying to spot relative opportunity across a universe of stocks.
+        """
+
         std_returns = self.stddev(self.returns, 20)
         inner = self.close.mask(self.returns < 0, std_returns)
         return self.rank(self.ts_argmax(self.signedpower(inner, 2.), 5)) - 0.5
     
     def alpha002(self):
-        """Alpha#2: (-1 * correlation(rank(delta(log(volume), 2)), rank(((close - open) / open)), 6))"""
+        """Alpha#2: (-1 * correlation(rank(delta(log(volume), 2)), rank(((close - open) / open)), 6))
+        
+        What is this alpha trying to capture?
+        Key intuition:
+        - It looks at whether recent volume surges are linked to intraday price moves.
+        - If volume change and price move rank correlation is high → alpha is negative (because of -1 multiplier).
+        - If volume change and price move rank correlation is low or negative → alpha is positive.
+        In other words, it favors stocks where:
+        - Large volume changes aren’t accompanied by similarly ranked intraday price moves (i.e. volume spike without a matching price spike).  
+        Market logic:
+        - The alpha may be trying to spot unwarranted volume surges that didn’t move price much — possibly signaling latent pressure (buyers/sellers accumulating without pushing price yet).
+        - Or it could detect potential mean-reversion setups: when high volume didn’t yet translate into price movement, maybe price will catch up next.
+        """
         x = self.rank(self.delta(np.log(self.volume.replace(0,1)), 2))
         y = self.rank((self.close - self.open) / self.open)
         return -1 * self.correlation(x, y, 6)
 
     def alpha003(self):
-        """Alpha#3: (-1 * correlation(rank(open), rank(volume), 10))"""
+        """Alpha#3: (-1 * correlation(rank(open), rank(volume), 10))
+        
+        - It computes the correlation between the rank of open prices and the rank of 
+        volume over the last 10 periods. Then, it multiplies this correlation by -1.
+        - Short when there has been a strong positive correlation between the ranks of open price and volume.
+        - Go long when there has been a strong negative correlation between those ranks.
+        This kind of signal might work in:
+        - Mean-reverting regimes
+        - Situations where excess enthusiasm or panic at the open is quickly corrected during the day
+        """
         return -1 * self.correlation(self.rank(self.open), self.rank(self.volume), 10)
 
     def alpha004(self):
-        """Alpha#4: (-1 * Ts_Rank(rank(low), 9))"""
-        return -1 * self.ts_rank(self.rank(self.low), 9)
+        """Alpha#4: (-1 * Ts_Rank(rank(low), 9))
+        What it’s looking for:
+        - If today’s low price (in rank form) is relatively high vs. the past 9 days → ts_rank is near 1 → alpha is strongly negative (because of -1)
+        - If today’s low price (in rank form) is relatively low vs. the past 9 days → ts_rank is near 0 → alpha is close to 0 (or weakly negative)
+        Why would this make sense?
+        - If the asset’s low prices are getting higher, this might indicate weakening of downward pressure → but this alpha bets against that (so it’s mean-reversion oriented: if low prices have been high, it expects reversal / weakness ahead).
+        - If low prices are setting fresh lows → the alpha is less negative → might indicate bottoming / support.
+        """
+        return 1 * self.ts_rank(self.rank(self.low), 9)
 
     def alpha005(self):
         """Alpha#5: (rank((open - (sum(vwap, 10) / 10))) * (-1 * abs(rank((close - vwap)))))"""
@@ -1007,6 +1049,104 @@ class Alpha101:
         return momentum_component - reversion_component
 
 
+
+    def alpha998(self):
+        """
+        Alpha#998: Multi-Crypto ML-Based Trading Signals
+        
+        This version loads asset-specific ML signals for multi-crypto portfolios.
+        Each cryptocurrency gets its own trained model and signals.
+        """
+        from pathlib import Path
+        
+        # Load multi-crypto signals
+        signals_path = Path("artefacts/improved_ml/multi_crypto_signals.parquet")
+        
+        if not signals_path.exists():
+            print(f"❌ Multi-crypto signals not found at {signals_path}")
+            print("Run: python multi_crypto_ml_training.py")
+            return pd.Series(0.0, index=self.df.index)
+        
+        try:
+            # Load combined signals DataFrame
+            signals_df = pd.read_parquet(signals_path)
+            print(f"📊 Loaded signals for assets: {list(signals_df.columns)}")
+            
+            # Get portfolio assets and dates
+            portfolio_dates = self.df.index.get_level_values('date').unique()
+            portfolio_assets = self.df.index.get_level_values('asset').unique()
+            
+            result_data = []
+            
+            for date in portfolio_dates:
+                date_str = date.strftime('%Y-%m-%d')
+                
+                for asset in portfolio_assets:
+                    signal_value = 0.0
+                    
+                    # Check if we have ML signals for this asset
+                    if asset in signals_df.columns:
+                        asset_signals = signals_df[asset].dropna()
+                        
+                        # Convert to date mapping
+                        asset_signals_by_date = {
+                            idx.strftime('%Y-%m-%d'): signal 
+                            for idx, signal in asset_signals.items()
+                        }
+                        
+                        # Look for signal on this date
+                        if date_str in asset_signals_by_date:
+                            signal_value = asset_signals_by_date[date_str]
+                        else:
+                            # Forward-fill from latest available signal
+                            available_dates = [d for d in asset_signals_by_date.keys() if d <= date_str]
+                            if available_dates:
+                                # Prefer latest non-zero signal
+                                non_zero_dates = [d for d in available_dates 
+                                                if asset_signals_by_date[d] != 0]
+                                if non_zero_dates:
+                                    closest_date = max(non_zero_dates)
+                                    signal_value = asset_signals_by_date[closest_date]
+                                else:
+                                    closest_date = max(available_dates)
+                                    signal_value = asset_signals_by_date[closest_date]
+                    else:
+                        print(f"⚠️  No ML model found for {asset}, using neutral signal")
+                    
+                    # Amplify signal for backtesting
+                    signal_value = signal_value * 1000.0
+                    
+                    # Add to results
+                    if (date, asset) in self.df.index:
+                        result_data.append(((date, asset), signal_value))
+            
+            # Create result series
+            if result_data:
+                index_tuples, signal_values = zip(*result_data)
+                multi_index = pd.MultiIndex.from_tuples(index_tuples, names=['date', 'asset'])
+                result = pd.Series(signal_values, index=multi_index)
+            else:
+                result = pd.Series(0.0, index=self.df.index)
+            
+            # Align and set name
+            result = result.reindex(self.df.index).fillna(0.0)
+            result.name = 'alpha998'
+            
+            # Log signal distribution by asset
+            for asset in portfolio_assets:
+                asset_mask = result.index.get_level_values('asset') == asset
+                asset_signals = result[asset_mask]
+                if len(asset_signals) > 0:
+                    signal_counts = asset_signals.value_counts()
+                    print(f"{asset} signals: {dict(signal_counts)}")
+            
+            return result
+            
+        except Exception as e:
+            print(f"❌ Error in Multi-Crypto Alpha998: {e}")
+            return pd.Series(0.0, index=self.df.index)
+        
+
     def alpha999(self):
         """
         Alpha#999: ML-Based Threshold Trading Signal
@@ -1016,8 +1156,8 @@ class Alpha101:
         directly as position sizes to avoid the ranking-based backtesting degeneracy.
         
         The alpha loads:
-        1. A trained ML model from artefacts/return_model.pt
-        2. Pre-computed trading signals from artefacts/trading_signals_threshold_40.parquet
+        1. A trained ML model from artefacts/return_model.pt (original) or artefacts/improved_ml/improved_model.pt (validated)
+        2. Pre-computed trading signals from corresponding parquet files
         
         Returns:
             pd.Series: Trading signals (-1, 0, 1) amplified for single-asset portfolios
@@ -1025,14 +1165,27 @@ class Alpha101:
         from pathlib import Path
         import torch
         
-        # Define paths for model artifacts
+        # Define paths for model artifacts - try improved version first
         artifacts_dir = Path("artefacts")
-        signals_path = artifacts_dir / "trading_signals_threshold_40.parquet"
+        improved_dir = artifacts_dir / "improved_ml"
+        
+        # Try improved model first (with proper validation)
+        if (improved_dir / "improved_trading_signals.parquet").exists():
+            signals_path = improved_dir / "improved_trading_signals.parquet"
+            model_type = "improved (validated)"
+            print(f"Alpha999: Using improved validated model")
+        else:
+            # Fallback to original model
+            signals_path = artifacts_dir / "trading_signals_threshold_40.parquet"
+            model_type = "original"
+            print(f"Alpha999: Using original model (run 'python run_validation.py' for validated version)")
         
         # Check if signals file exists
         if not signals_path.exists():
             print(f"Warning: ML signals file not found at {signals_path}")
-            print("Please run 'python src/ml_forecast_prob_dist.py' first to generate the signals.")
+            print("Please run one of the following:")
+            print("  python run_validation.py  (for validated model)")
+            print("  python src/ml_forecast_prob_dist.py  (for original model)")
             # Return neutral signals as fallback
             result = pd.Series(0.0, index=self.df.index)
             result.name = 'alpha999'
@@ -1043,7 +1196,7 @@ class Alpha101:
             signals_df = pd.read_parquet(signals_path)
             ml_signals = signals_df['signal']
             
-            print(f"Alpha999: Loaded {len(ml_signals)} ML trading signals")
+            print(f"Alpha999: Loaded {len(ml_signals)} ML trading signals ({model_type})")
             print(f"ML signals date range: {ml_signals.index.min()} to {ml_signals.index.max()}")
             print(f"Portfolio date range: {self.df.index.get_level_values('date').min()} to {self.df.index.get_level_values('date').max()}")
             
@@ -1074,16 +1227,29 @@ class Alpha101:
                 if date_str in ml_signals_by_date:
                     signal_value = ml_signals_by_date[date_str]
                 else:
-                    # Find closest previous date
+                    # Find closest previous date, but prefer non-zero signals for forward-filling
                     available_dates = [d for d in ml_signals_by_date.keys() if d <= date_str]
                     if available_dates:
-                        closest_date = max(available_dates)
-                        signal_value = ml_signals_by_date[closest_date]
+                        # First try to find the latest non-zero signal for better forward-filling
+                        non_zero_dates = [d for d in available_dates if ml_signals_by_date[d] != 0]
+                        if non_zero_dates:
+                            closest_date = max(non_zero_dates)
+                            signal_value = ml_signals_by_date[closest_date]
+                            # print(f"   🔄 Forward-filling non-zero signal from {closest_date}: {signal_value}")
+                        else:
+                            # Fallback to latest date even if zero
+                            closest_date = max(available_dates)
+                            signal_value = ml_signals_by_date[closest_date]
                 
                 # Always amplify signals for alpha999 detection and proper backtesting
                 # This ensures that -1, 0, 1 signals translate to meaningful position changes
                 # and triggers the custom alpha999 backtest function
-                signal_value = signal_value * 1000.0
+                if model_type == "improved (validated)":
+                    # Improved model automatically chooses optimal direction
+                    signal_value = signal_value * 1000.0 
+                else:
+                    # Original model - may need manual sign correction
+                    signal_value = signal_value * 1000.0   # Keep correction for original model
                 
                 # Apply same signal to all assets for this date
                 for asset in portfolio_assets:
@@ -1109,6 +1275,11 @@ class Alpha101:
             signal_counts = result.value_counts()
             print(f"Alpha999 signal distribution: {dict(signal_counts)}")
             
+            # Add validation warning if using original model
+            if model_type == "original":
+                print("⚠️  WARNING: Using original model with potential look-ahead bias!")
+                print("   Run 'python run_validation.py' to generate validated model")
+            
             return result
             
         except Exception as e:
@@ -1119,6 +1290,55 @@ class Alpha101:
             result = pd.Series(0.0, index=self.df.index)
             result.name = 'alpha999'
             return result
+
+
+
+    #test alpha004
+    # def alpha200(self):
+    #     """Alpha#200: (-1 * Ts_Rank(rank(low), 1))"""
+    #     return 1 * self.ts_rank(self.rank(self.low), 1)
+
+    # def alpha201(self):
+    #     """Alpha#201: (-1 * Ts_Rank(rank(low), 2))"""
+    #     return 1 * self.ts_rank(self.rank(self.low), 2)
+    
+    # def alpha202(self):
+    #     """Alpha#202: (-1 * Ts_Rank(rank(low), 3))"""
+    #     return 1 * self.ts_rank(self.rank(self.low), 3)
+    
+    # def alpha203(self):
+    #     """Alpha#203: (-1 * Ts_Rank(rank(low), 4))"""
+    #     return 1 * self.ts_rank(self.rank(self.low), 4)
+
+    # def alpha204(self):
+    #     """Alpha#204: (-1 * Ts_Rank(rank(low), 5))"""
+    #     return 1 * self.ts_rank(self.rank(self.low), 5)
+    
+    def alpha205(self):
+        """Alpha#205: (-1 * Ts_Rank(rank(low), 6))"""
+        return 1 * self.ts_rank(self.rank(self.low), 6)
+    
+    def alpha206(self):
+        """Alpha#206: (-1 * Ts_Rank(rank(low), 7))"""
+        return 1 * self.ts_rank(self.rank(self.low), 7)
+
+    def alpha207(self):
+        """Alpha#207: (-1 * Ts_Rank(rank(low), 8))"""
+        return 1 * self.ts_rank(self.rank(self.low), 8)
+    
+    def alpha208(self):
+        """Alpha#208: (-1 * Ts_Rank(rank(low), 9))"""
+        return 1 * self.ts_rank(self.rank(self.low), 9)
+    
+    # def alpha209(self):
+    #     """Alpha#209: (-1 * Ts_Rank(rank(low), 10))"""
+    #     return 1 * self.ts_rank(self.rank(self.low), 10)
+    
+    # def alpha210(self):
+    #     """Alpha#210: (-1 * Ts_Rank(rank(low), 11))"""
+    #     return 1 * self.ts_rank(self.rank(self.low), 11)  
+
+
 
     def get_all_alphas(self):
         """Calculates all implemented alpha functions and returns them in a DataFrame."""

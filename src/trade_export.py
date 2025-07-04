@@ -420,7 +420,7 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
     Args:
         alpha_calculator: Alpha101 instance
         price_data: Price data DataFrame
-        alpha_name: Name of alpha to analyze (default: alpha999)
+        alpha_name: Name of alpha to analyze (default: alpha998)
         output_dir: Directory to save CSV files
     
     Returns:
