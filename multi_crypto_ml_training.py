@@ -47,11 +47,14 @@ def train_multi_crypto_models(assets: list, base_config: ImprovedConfig):
 
 # Usage
 if __name__ == "__main__":
-    crypto_assets = ['BTC-USD', 'ETH-USD']
-    
+    # sp100_tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD', 'PEPE24478-USD']
+
+    # crypto_assets = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
+    crypto_assets = ['DOGE-USD']
+
     base_config = ImprovedConfig(
         start="2020-01-01",
-        end="2023-10-31", 
+        end="2024-01-01", 
         n_quantiles=5,
         hidden_sizes=(64, 32, 16),
         n_epochs=30,

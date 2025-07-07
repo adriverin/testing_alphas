@@ -39,8 +39,8 @@ from src.validation import run_factor_analysis, run_oos_validation_report, run_i
 # ]
 
 # tickers = ['BTC-USD']
-tickers = ['BTC-USD', 'ETH-USD']
-
+# tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
+tickers = ['DOGE-USD']
 start_date = '2024-03-31'
 end_date = '2025-06-30' 
 
@@ -77,6 +77,13 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
     """
     )
     
+    parser.add_argument(
+        '--stop-loss', 
+        type=float, 
+        default=None,
+        help='Individual position stop-loss percentage (e.g., -5.0 for 5%% loss). Applies to interval, summary, oos, and combine analyses.'
+    )
+    
     args = parser.parse_args()
 
 
@@ -98,55 +105,88 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
     
     if args.analysis_type == 'interval':
         print("\n--- Running Per-Alpha Interval PDF Report ---")
-        generate_interval_report(alpha_calculator, price_data, intervals_to_test, first_alpha=first_alpha, last_alpha=last_alpha)
+        if args.stop_loss is not None:
+            print(f"🛡️ Individual position stop-loss enabled: {args.stop_loss}%")
+        generate_interval_report(alpha_calculator, price_data, intervals_to_test, first_alpha=first_alpha, last_alpha=last_alpha, stop_loss_pct=args.stop_loss)
 
     elif args.analysis_type == 'summary':
         print("\n--- Running Summary HTML Report ---")
-        generate_summary_html_report(alpha_calculator, price_data, intervals_to_test, first_alpha=first_alpha, last_alpha=last_alpha)
+        if args.stop_loss is not None:
+            print(f"🛡️ Individual position stop-loss enabled: {args.stop_loss}%")
+        generate_summary_html_report(alpha_calculator, price_data, intervals_to_test, first_alpha=first_alpha, last_alpha=last_alpha, stop_loss_pct=args.stop_loss)
 
     elif args.analysis_type == 'oos':
         print("\n--- Running In-Sample / Out-of-Sample Validation ---")
+        if args.stop_loss is not None:
+            print(f"🛡️ Individual position stop-loss enabled: {args.stop_loss}%")
 
         # Define your split date here
         core_alphas = ['alpha003', 'alpha041', 'alpha042', 'alpha054', 'alpha083', 'alpha101']
         in_sample_end_date = '2020-12-31'
         intervals_to_test = generate_date_intervals(start_date, in_sample_end_date, number_of_intervals)
 
-        run_oos_validation_report(alpha_calculator, price_data, core_alphas, intervals_to_test)
-        run_is_validation_report(alpha_calculator, price_data, core_alphas, in_sample_end_date, end_date)
+        run_oos_validation_report(alpha_calculator, price_data, core_alphas, intervals_to_test, stop_loss_pct=args.stop_loss)
+        run_is_validation_report(alpha_calculator, price_data, core_alphas, in_sample_end_date, end_date, stop_loss_pct=args.stop_loss)
 
 
     elif args.analysis_type == 'combine' or args.analysis_type == 'factor':
         # Both 'combine' and 'factor' analyses need the combined alpha returns
         print("\n--- Generating and Backtesting Combined Alpha ---")
         
-        # This is your basket of "champion" alphas, selected from your research
-        core_alphas = ['alpha999']
+        # Display stop-loss configuration
+        if args.stop_loss is not None:
+            print(f"🛡️ Individual position stop-loss enabled: {args.stop_loss}%")
         
-        mega_alpha_signal = combine_alphas(alpha_calculator, core_alphas)
+        # This is your basket of "champion" alphas, selected from your research
+        core_alphas = ['alpha998']
+        
+        # For single alpha, bypass combiner
+        if len(core_alphas) == 1:
+            alpha_name = core_alphas[0]
+            print(f"\n--- Using Single Alpha: {alpha_name} ---")
+            if hasattr(alpha_calculator, alpha_name):
+                mega_alpha_signal = getattr(alpha_calculator, alpha_name)().dropna()
+                mega_alpha_signal.name = alpha_name
+            else:
+                print(f"Alpha {alpha_name} not found")
+                return
+        else:
+            mega_alpha_signal = combine_alphas(alpha_calculator, core_alphas)
         
         if mega_alpha_signal.empty:
-            print("Combined alpha resulted in no signals. Halting.")
+            print("Alpha resulted in no signals. Halting.")
             return
             
-        strategy_returns_gross, portfolio_info = run_rank_backtest(price_data, mega_alpha_signal)
+        strategy_returns_gross, portfolio_info = run_rank_backtest(price_data, mega_alpha_signal, args.stop_loss)
         daily_turnover = portfolio_info['turnover'].groupby('date').first()
         daily_cost = daily_turnover * (5 / 10000.0) # 5 bps
         strategy_returns_net = strategy_returns_gross - daily_cost.reindex(strategy_returns_gross.index).fillna(0)
 
         if args.analysis_type == 'combine':
             fig = plt.figure(figsize=(12, 8))
+            
+            # Modify title to include stop-loss info
+            title = f"Performance of Combined Alphas ({len(core_alphas)} signals)"
+            if args.stop_loss is not None:
+                title += f" with {args.stop_loss}% Stop-Loss"
+            
             analyze_performance(
                 strategy_returns_gross, 
                 portfolio_info, 
                 price_data, 
                 fig=fig, 
-                title=f"Performance of Combined Alphas ({len(core_alphas)} signals)"
+                title=title
             )
             report_dir = "final_strategy_reports"
             if not os.path.exists(report_dir): os.makedirs(report_dir)
             plot_path = os.path.join(report_dir, "combined_alpha_performance.pdf")
             fig.savefig(plot_path)
+            
+            # Print stop-loss summary if applicable
+            if hasattr(portfolio_info, 'attrs') and args.stop_loss is not None:
+                stop_loss_triggers = portfolio_info.attrs.get('stop_loss_triggers', 0)
+                print(f"\n🛡️ Stop-Loss Summary: {stop_loss_triggers} positions stopped out")
+            
             print(f"\n--- Final Combined Strategy Report saved to '{plot_path}' ---")
             plt.show()
 

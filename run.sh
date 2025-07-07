@@ -10,7 +10,7 @@ rm artefacts/*parquet
 #python run_simple_validation.py
 
 python multi_crypto_ml_training.py
-python main.py $1
+python main.py $1 $2 $3 # 1: type of run; 2:--stop-loss; 3: stop loss pct 
 
 open reports/interval_reports/alpha998_interval_report.pdf
 

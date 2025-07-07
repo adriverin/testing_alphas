@@ -1,0 +1,2 @@
+Asset,Strategy,Trade_Type,Entry_Date,Exit_Date,Entry_Price,Exit_Price,Entry_Weight,Days_Held,PnL_Percent,Weight_Impact,Trade_Result,Status,Daily_Contributions,Stop_Loss_Exit
+DOGE-USD,alpha998,LONG,2024-04-01,2025-06-28,0.20556999742984772,0.16369199752807617,1.0,453,34.67968454526971,0.34679684545269707,WIN,OPEN,453,False

@@ -1,8 +1,8 @@
 {
   "config": {
-    "symbol": "ETH-USD",
+    "symbol": "DOGE-USD",
     "start": "2020-01-01",
-    "end": "2023-10-31",
+    "end": "2024-01-01",
     "interval": "1d",
     "forecast_horizon_hours": 24,
     "vol_window_hours": 240,
@@ -32,10 +32,10 @@
     "n_ensemble_models": 3
   },
   "quantile_edges": [
-    -0.7226746995501693,
-    -0.1803997371061633,
-    0.29979866583815,
-    0.9427587916592318
+    -0.7272507251813621,
+    -0.20417506890233011,
+    0.1827321844357128,
+    0.7749737955219144
   ],
   "feature_names": [
     "sma_2d",
@@ -80,14 +80,14 @@
   },
   "test_signal_distribution": {
     "0": 359,
-    "1": 20,
-    "-1": 20
+    "-1": 20,
+    "1": 20
   },
   "direction_used": "reversed",
-  "prediction_correlation": 0.1005220596623618,
+  "prediction_correlation": 0.04622555620217595,
   "signal_correlations": {
-    "original": -0.03898358927647239,
-    "reversed": 0.03898358927647239
+    "original": -0.007275022581795315,
+    "reversed": 0.007275022581795315
   },
   "suspicious_features": []
 }

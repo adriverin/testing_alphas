@@ -10,7 +10,7 @@ from src.backtests import run_rank_backtest
 
 
 
-def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals, report_dir="reports/oos_validation"):
+def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals, report_dir="reports/oos_validation", stop_loss_pct=None):
     """
     Runs and plots OOS validation for a given list of alphas.
     """
@@ -44,7 +44,7 @@ def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals
                         print("  -> No valid signals in OOS period.")
                         continue
                     
-                    strategy_returns, portfolio_info = run_rank_backtest(oos_price_data_interval, oos_alpha_series)
+                    strategy_returns, portfolio_info = run_rank_backtest(oos_price_data_interval, oos_alpha_series, stop_loss_pct)
                     
                     if strategy_returns.empty: continue
                         
@@ -68,7 +68,7 @@ def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals
 
 
 
-def run_is_validation_report(alpha_calculator, full_price_data, alpha_list, interval_start_date, interval_end_date, report_dir='reports/in_sample_analysis'):
+def run_is_validation_report(alpha_calculator, full_price_data, alpha_list, interval_start_date, interval_end_date, report_dir='reports/in_sample_analysis', stop_loss_pct=None):
     """
     Runs and plots In-Sample validation for a given list of alphas.
     """
@@ -107,7 +107,7 @@ def run_is_validation_report(alpha_calculator, full_price_data, alpha_list, inte
                     continue
                     
                 # Backtest on the interval data
-                strategy_returns, portfolio_info = run_rank_backtest(interval_price_data, interval_alpha_series)
+                strategy_returns, portfolio_info = run_rank_backtest(interval_price_data, interval_alpha_series, stop_loss_pct)
                 
                 if strategy_returns.empty:
                     print(f"    -> Backtest resulted in no returns for this interval. Skipping.")

@@ -6,12 +6,12 @@ This script extracts all individual trades from backtest results and exports the
 to spreadsheet format with detailed statistics and analysis.
 
 Usage:
-    python export_trades.py [alpha_name] [--all-alphas]
+    python export_trades.py [alpha_name] [--all-alphas] [--stop-loss PERCENT]
 
 Examples:
     python export_trades.py alpha998
-    python export_trades.py alpha003
-    python export_trades.py --all-alphas
+    python export_trades.py alpha003 --stop-loss -5.0
+    python export_trades.py --all-alphas --stop-loss -3.0
 """
 
 import sys
@@ -35,6 +35,8 @@ def main():
                        help="Output directory for trade files (default: export_trades_to_csv/trade_exports)")
     parser.add_argument("--format", choices=["csv", "excel"], default="excel",
                        help="Export format: csv or excel (default: excel)")
+    parser.add_argument("--stop-loss", type=float, default=None,
+                       help="Individual position stop-loss percentage (e.g., -5.0 for 5%% loss)")
     
     args = parser.parse_args()
     
@@ -43,7 +45,10 @@ def main():
     # Load data
     try:
         # Use same config as main.py
-        tickers = ['BTC-USD', 'ETH-USD']
+        # tickers = ['BTC-USD', 'ETH-USD']
+        # start_date = '2024-03-31'
+        # end_date = '2025-06-30'
+        tickers = ['DOGE-USD']
         start_date = '2024-03-31'
         end_date = '2025-06-30'
 
@@ -57,6 +62,12 @@ def main():
     # Create output directory
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Display stop-loss configuration
+    if args.stop_loss is not None:
+        print(f"🛡️ Individual position stop-loss enabled: {args.stop_loss}%")
+    else:
+        print("🔓 Stop-loss disabled")
     
     if args.all_alphas:
         print("📊 Exporting trades for all available alphas...")
@@ -77,7 +88,8 @@ def main():
                     price_data, 
                     alpha_name, 
                     args.output_dir,
-                    args.format
+                    args.format,
+                    args.stop_loss
                 )
                 if export_path:
                     successful_exports += 1
@@ -105,7 +117,8 @@ def main():
                 price_data, 
                 args.alpha_name, 
                 args.output_dir,
-                args.format
+                args.format,
+                args.stop_loss
             )
             
             if export_path:

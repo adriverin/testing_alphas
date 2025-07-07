@@ -467,7 +467,7 @@ def export_trades_to_excel(trades_df, stats, output_path, alpha_name="Strategy")
     print(f"📊 Trade analysis exported to: {output_path}")
     return output_path
 
-def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", output_dir="export_trades_to_csv/trade_exports", export_format="excel"):
+def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", output_dir="export_trades_to_csv/trade_exports", export_format="excel", stop_loss_pct=None):
     """
     Main function to export trades from a specific alpha's backtest.
     
@@ -476,6 +476,8 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
         price_data: Price data DataFrame
         alpha_name: Name of alpha to analyze (default: alpha998)
         output_dir: Directory to save CSV files
+        export_format: Export format ("excel" or "csv")
+        stop_loss_pct: Optional stop-loss percentage (e.g., -5.0 for 5% loss)
     
     Returns:
         Path to exported CSV file
@@ -483,6 +485,8 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
     from src.backtests import run_rank_backtest
     
     print(f"🔍 Extracting trades for {alpha_name}...")
+    if stop_loss_pct is not None:
+        print(f"🛡️ Individual position stop-loss enabled: {stop_loss_pct}%")
     
     # Get alpha signals
     if not hasattr(alpha_calculator, alpha_name):
@@ -495,8 +499,8 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
         print(f"❌ No signals generated for {alpha_name}")
         return None
     
-    # Run backtest
-    strategy_returns, portfolio_info = run_rank_backtest(price_data, alpha_series)
+    # Run backtest with optional stop-loss
+    strategy_returns, portfolio_info = run_rank_backtest(price_data, alpha_series, stop_loss_pct)
     
     if strategy_returns.empty:
         print(f"❌ No returns generated for {alpha_name}")
@@ -509,8 +513,40 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
         print(f"❌ No trades extracted for {alpha_name}")
         return None
     
+    # Add stop-loss information to trades
+    if hasattr(portfolio_info, 'attrs') and 'stopped_positions' in portfolio_info.attrs:
+        stopped_positions = portfolio_info.attrs['stopped_positions']
+        
+        # Mark trades that were stopped out
+        trades_df['Stop_Loss_Exit'] = False
+        for stopped_pos in stopped_positions:
+            mask = (
+                (trades_df['Asset'] == stopped_pos['asset']) &
+                (trades_df['Entry_Date'] == stopped_pos['entry_date']) &
+                (trades_df['Exit_Date'] == stopped_pos['stop_date'])
+            )
+            trades_df.loc[mask, 'Stop_Loss_Exit'] = True
+            trades_df.loc[mask, 'Trade_Result'] = 'STOP_LOSS'
+    else:
+        trades_df['Stop_Loss_Exit'] = False
+    
     # Calculate statistics
     stats = calculate_trade_statistics(trades_df)
+    
+    # Add stop-loss statistics
+    if hasattr(portfolio_info, 'attrs'):
+        stats['Stop_Loss_Triggers'] = portfolio_info.attrs.get('stop_loss_triggers', 0)
+        stats['Stop_Loss_Percentage'] = stop_loss_pct if stop_loss_pct is not None else 'Disabled'
+        
+        # Calculate stop-loss specific metrics
+        stop_loss_trades = trades_df[trades_df['Stop_Loss_Exit'] == True]
+        stats['Stop_Loss_Count'] = len(stop_loss_trades)
+        if len(stop_loss_trades) > 0:
+            stats['Avg_Stop_Loss_Days'] = stop_loss_trades['Days_Held'].mean()
+            stats['Avg_Stop_Loss_PnL'] = stop_loss_trades['PnL_Percent'].mean()
+        else:
+            stats['Avg_Stop_Loss_Days'] = 0
+            stats['Avg_Stop_Loss_PnL'] = 0
     
     # Export based on format
     output_path = Path(output_dir) / f"{alpha_name}_trades_{datetime.now().strftime('%Y%m%d_%H%M')}"
@@ -531,6 +567,15 @@ def export_backtest_trades(alpha_calculator, price_data, alpha_name="alpha998", 
     print(f"   Average Days Held: {stats['Average_Days_Held']:.1f}")
     print(f"   Best Trade: {stats['Best_Trade_Percent']:.2f}%")
     print(f"   Worst Trade: {stats['Worst_Trade_Percent']:.2f}%")
+    
+    # Print stop-loss summary
+    if stop_loss_pct is not None:
+        print(f"\n🛡️ Stop-Loss Summary:")
+        print(f"   Stop-Loss Threshold: {stop_loss_pct}%")
+        print(f"   Positions Stopped Out: {stats['Stop_Loss_Count']}")
+        if stats['Stop_Loss_Count'] > 0:
+            print(f"   Avg Days to Stop-Loss: {stats['Avg_Stop_Loss_Days']:.1f}")
+            print(f"   Avg Stop-Loss P&L: {stats['Avg_Stop_Loss_PnL']:.2f}%")
     
     print(f"\n📊 Portfolio Return Analysis:")
     print(f"   Sum of Trade Impacts: {stats['Total_Weight_Impact']:.4f}")

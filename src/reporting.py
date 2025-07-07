@@ -299,7 +299,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
 
 
 
-def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=106):
+def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=106, stop_loss_pct=None):
     """
     Performs a chunked backtest for each alpha over specified date intervals.
     Generates one PDF report per alpha, with each page showing performance in one interval.
@@ -352,7 +352,7 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
                         continue
                         
                     # Backtest on the interval data
-                    strategy_returns, portfolio_info = run_rank_backtest(interval_price_data, interval_alpha_series)
+                    strategy_returns, portfolio_info = run_rank_backtest(interval_price_data, interval_alpha_series, stop_loss_pct=stop_loss_pct)
                     
                     if strategy_returns.empty:
                         print(f"    -> Backtest resulted in no returns for this interval. Skipping.")
@@ -382,7 +382,7 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
 
 
 
-def generate_summary_html_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/summary_reports", first_alpha=1, last_alpha=106):
+def generate_summary_html_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/summary_reports", first_alpha=1, last_alpha=106, stop_loss_pct=None):
     """
     Performs a chunked backtest and generates a single, interactive HTML summary report.
     - The main metric displayed and color-coded is the Information Ratio (IR).
@@ -426,7 +426,7 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
                 
                 if interval_alpha_series.empty or interval_price_data.empty: continue
                     
-                strategy_returns, portfolio_info = run_rank_backtest(interval_price_data, interval_alpha_series)
+                strategy_returns, portfolio_info = run_rank_backtest(interval_price_data, interval_alpha_series, stop_loss_pct=stop_loss_pct)
                 
                 if strategy_returns.empty: continue
 
