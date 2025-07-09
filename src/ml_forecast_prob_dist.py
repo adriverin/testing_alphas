@@ -52,7 +52,7 @@ class Config:
     symbol: str = "BTC-USD"
     start: str = "2015-01-01"
     end: str = "2024-01-01"
-    interval: str = "1d"
+    interval: str = "1h"
     forecast_horizon_hours: int = 24  # 1 day ahead prediction
     vol_window_hours: int = 240       # 10 days for volatility estimation
     # ema_windows: tuple = (0.5, 1, 3, 6, 12)

@@ -7,3 +7,4 @@ seaborn
 statsmodels
 pandas-datareader
 lxml
+ccxt

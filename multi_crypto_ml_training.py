@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     base_config = ImprovedConfig(
         start="2020-01-01",
-        end="2024-01-01", 
+        end="2024-10-01", 
         n_quantiles=5,
         hidden_sizes=(64, 32, 16),
         n_epochs=30,

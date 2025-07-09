@@ -21,7 +21,7 @@ from pathlib import Path
 # Add src to path
 sys.path.append(str(Path(__file__).parent / ".."))
 
-from src.data_loader import get_stock_data
+from src.data_loader import get_stock_data, get_crypto_data
 from src.alpha101 import Alpha101
 from src.trade_export import export_backtest_trades
 
@@ -37,6 +37,10 @@ def main():
                        help="Export format: csv or excel (default: excel)")
     parser.add_argument("--stop-loss", type=float, default=None,
                        help="Individual position stop-loss percentage (e.g., -5.0 for 5%% loss)")
+    parser.add_argument("--crypto-mode", action="store_true",
+                       help="Use Binance crypto data instead of yfinance stock data")
+    parser.add_argument("--interval", type=str, default="1d",
+                       help="Data interval for crypto mode: 1m, 5m, 15m, 1h, 4h, 1d (default: 1d)")
     
     args = parser.parse_args()
     
@@ -48,11 +52,20 @@ def main():
         # tickers = ['BTC-USD', 'ETH-USD']
         # start_date = '2024-03-31'
         # end_date = '2025-06-30'
-        tickers = ['DOGE-USD']
+        tickers = ['BTC-USD', 'ETH-USD']
         start_date = '2024-03-31'
         end_date = '2025-06-30'
 
-        price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)
+        # Choose data source based on mode
+        if args.crypto_mode:
+            print(f"🔥 Crypto mode enabled - using Binance data with {args.interval} interval")
+            crypto_tickers = [t for t in tickers if '-USD' in t]
+            if not crypto_tickers:
+                print("❌ No crypto tickers found. Use format like 'BTC-USD', 'ETH-USD'")
+                return 1
+            price_data = get_crypto_data(crypto_tickers, start_date=start_date, end_date=end_date, interval=args.interval)
+        else:
+            price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)
         alpha_calculator = Alpha101(price_data)
         print(f"✅ Data loaded successfully: {len(price_data)} rows")
     except Exception as e:

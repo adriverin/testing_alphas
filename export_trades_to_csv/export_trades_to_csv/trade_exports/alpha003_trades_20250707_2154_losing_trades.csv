@@ -1,0 +1,2 @@
+Asset,Strategy,Trade_Type,Entry_Date,Exit_Date,Entry_Price,Exit_Price,Entry_Weight,Days_Held,PnL_Percent,Weight_Impact,Trade_Result,Daily_Contributions,Status,Stop_Loss_Exit
+ETH-USD,alpha003,LONG,2024-05-29,2025-02-28,3763.196533203125,2237.9052734375,0.5,275,-26.509205102256985,-0.13254602551128492,LOSS,270,,False

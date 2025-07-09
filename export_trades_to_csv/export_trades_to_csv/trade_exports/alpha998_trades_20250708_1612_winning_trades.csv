@@ -1,0 +1,2 @@
+Asset,Strategy,Trade_Type,Entry_Date,Exit_Date,Entry_Price,Exit_Price,Entry_Weight,Days_Held,PnL_Percent,Weight_Impact,Trade_Result,Status,Daily_Contributions,Stop_Loss_Exit
+BTC-USD,alpha998,LONG,2024-03-31 00:15:00+00:00,2025-06-29 23:45:00+00:00,69857.3,108356.93,0.5,455,59.7665597908548,0.298832798954274,WIN,OPEN,43774,False

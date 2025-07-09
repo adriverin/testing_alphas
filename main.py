@@ -6,7 +6,7 @@ import os
 import matplotlib.pyplot as plt
 
 # --- Import all the functions from your modules in the 'src' directory ---
-from src.data_loader import get_stock_data
+from src.data_loader import get_stock_data, get_crypto_data
 from src.alpha101 import Alpha101
 from src.backtests import run_rank_backtest
 from src.combiner import combine_alphas
@@ -41,8 +41,10 @@ from src.validation import run_factor_analysis, run_oos_validation_report, run_i
 # tickers = ['BTC-USD']
 # tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
 tickers = ['DOGE-USD']
-start_date = '2024-03-31'
-end_date = '2025-06-30' 
+start_date = '2025-01-01'
+end_date = '2025-07-07' 
+# start_date = '2024-03-31'
+# end_date = '2025-06-30' 
 
 # --- Define the intervals you want to test ---
 number_of_intervals = 1
@@ -83,6 +85,17 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
         default=None,
         help='Individual position stop-loss percentage (e.g., -5.0 for 5%% loss). Applies to interval, summary, oos, and combine analyses.'
     )
+    parser.add_argument(
+        '--crypto-mode',
+        action='store_true',
+        help='Use Binance crypto data instead of yfinance stock data'
+    )
+    parser.add_argument(
+        '--interval',
+        type=str,
+        default='1d',
+        help='Data interval for crypto mode: 1m, 5m, 15m, 1h, 4h, 1d (default: 1d)'
+    )
     
     args = parser.parse_args()
 
@@ -92,7 +105,19 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
 
     # --- Load Data Once ---
     print("--- Loading Full Dataset ---")
-    price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)
+    
+    # Choose data source based on mode
+    if args.crypto_mode:
+        print(f"🔥 Crypto mode enabled - using Binance data with {args.interval} interval")
+        # Filter to crypto tickers only
+        crypto_tickers = [t for t in tickers if '-USD' in t]
+        if not crypto_tickers:
+            print("❌ No crypto tickers found. Use format like 'BTC-USD', 'ETH-USD'")
+            return
+        price_data = get_crypto_data(crypto_tickers, start_date=start_date, end_date=end_date, interval=args.interval)
+    else:
+        print("📈 Stock mode - using yfinance data")
+        price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)
     
     if price_data.empty:
         print("Could not load data. Exiting.")
