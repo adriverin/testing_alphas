@@ -1,31 +1,30 @@
-# 101 Formulaic Alphas: Advanced Quantitative Trading Framework
+# 101 Formulaic Alphas: A Quantitative Trading Framework
 
-This repository contains a **production-ready Python framework** for implementing, backtesting, and analyzing quantitative trading strategies. Originally based on the **"101 Formulaic Alphas"** paper by Zura Kakushadze, it has evolved into a comprehensive alpha research platform with **high-frequency crypto capabilities**, **ML integration**, and **enterprise-grade risk management**.
+This repository contains a **production-ready Python framework** for implementing, backtesting, and analyzing quantitative trading strategies. Originally based on the **"101 Formulaic Alphas"** paper by Zura Kakushadze, it is evolving into a comprehensive alpha research platform with **mid-frequency crypto capabilities**, **ML integration**, and **risk management**.
 
-## 🚀 New Major Features (2025)
+## New Major Features 
 
-### **🔥 High-Frequency Crypto Backtesting**
+### ** Mid-Frequency Crypto Backtesting**
 - **Minute-level precision**: Test strategies at 1m, 5m, 15m intervals
 - **Binance integration**: Professional exchange data via `ccxt`
 - **Massive scale**: Handle 250K+ data points seamlessly
 - **Same interface**: All existing alphas work unchanged
 
-### **🛡️ Advanced Risk Management**
+### ** Advanced Risk Management**
 - **Individual position stop-loss**: Precise risk control per trade
 - **Real-time P&L tracking**: Monitor position performance
 - **Multiple stop-loss strategies**: Portfolio vs individual position levels
 
-### **📊 Comprehensive Trade Analysis**
+### ** Comprehensive Trade Analysis**
 - **Individual trade extraction**: Export every trade with full details
-- **Excel/CSV exports**: Professional spreadsheet analysis
+- **Excel/CSV exports**: Spreadsheet analysis
 - **Trade statistics**: Win rate, profit factor, holding periods
 - **P&L validation**: Verified against portfolio returns
 
-### **🤖 Machine Learning Integration**
+### ** Machine Learning Integration**
 - **ML-powered alphas**: Alpha998/999 with neural network signals
 - **Multi-crypto models**: Asset-specific ML strategies
-- **Probability distributions**: Forecast return distributions
-- **Cross-asset validation**: BTC, ETH, multi-crypto portfolios
+- **Cross-asset validation**: Multi-crypto portfolios
 
 ## Project Architecture
 
@@ -33,23 +32,23 @@ The framework is organized into specialized modules for maximum flexibility:
 
 ```
 testing_alphas/
-├── main.py                          # 🎯 Central command interface
+├── main.py                          # Central command interface
 ├── src/
-│   ├── alpha101.py                  # 📈 101+ alpha implementations
-│   ├── data_loader.py               # 📥 Multi-source data pipeline
-│   ├── backtests.py                 # ⚙️ Advanced backtesting engines
-│   ├── reporting.py                 # 📊 Comprehensive reporting suite
-│   ├── validation.py                # ✅ Rigorous validation framework
-│   ├── trade_export.py              # 💼 Professional trade analysis
-│   └── combiner.py                  # 🔀 Alpha combination strategies
+│   ├── alpha101.py                  # 101+ alpha implementations
+│   ├── data_loader.py               # Multi-source data pipeline
+│   ├── backtests.py                 # Advanced backtesting engines
+│   ├── reporting.py                 # Comprehensive reporting suite
+│   ├── validation.py                # Rigorous validation framework
+│   ├── trade_export.py              # Professional trade analysis
+│   └── combiner.py                  # Alpha combination strategies
 ├── export_trades_to_csv/
-│   └── export_trades.py             # 📋 Standalone trade export tool
-├── reports/                         # 📁 Generated analysis reports
-├── artefacts/                       # 🤖 ML models and signals
-└── requirements.txt                 # 📦 Dependencies
+│   └── export_trades.py             # Standalone trade export tool
+├── reports/                         # Generated analysis reports
+├── artefacts/                       # ML models and signals
+└── requirements.txt                 # Dependencies
 ```
 
-## 🎯 Core Capabilities
+## Core Capabilities
 
 ### **1. Multi-Source Data Pipeline**
 ```python
@@ -63,7 +62,7 @@ crypto_data = get_crypto_data(['BTC-USD', 'ETH-USD'], '2024-01-01', '2024-12-31'
 **Features:**
 - **Yahoo Finance**: Stocks, ETFs, daily data
 - **Binance Exchange**: 100+ crypto pairs, 1m-1d intervals
-- **Intelligent caching**: Fast subsequent runs
+- **Caching**: Fast subsequent runs
 - **Automatic validation**: Data quality checks
 
 ### **2. Advanced Alpha Implementation**
@@ -78,12 +77,12 @@ alpha999 = alpha_calculator.alpha999()  # Neural network forecasts
 ```
 
 **Alpha Categories:**
-- **📈 Momentum**: Trend-following strategies
-- **📉 Mean Reversion**: Contrarian strategies  
-- **💹 Cross-Sectional**: Relative value strategies
-- **🤖 Machine Learning**: AI-powered signals
+- **Momentum**: Trend-following strategies
+- **Mean Reversion**: Contrarian strategies  
+- **Cross-Sectional**: Relative value strategies
+- **Machine Learning**: AI-powered signals
 
-### **3. Professional Backtesting Engine**
+### **3. Backtesting Engine**
 ```python
 # Run backtest with stop-loss
 strategy_returns, portfolio_info = run_rank_backtest(
@@ -107,10 +106,10 @@ strategy_returns, portfolio_info = run_rank_backtest(
 # Generate interval reports with stop-loss
 python main.py interval --stop-loss -3.0
 
-# High-frequency crypto analysis
+# Higher-frequency crypto analysis
 python main.py combine --crypto-mode --interval 1h
 
-# Out-of-sample validation
+# Out-of-sample validation 
 python main.py oos --stop-loss -5.0
 
 # Interactive HTML summary
@@ -129,7 +128,7 @@ python export_trades.py alpha998 --crypto-mode --interval 5m --format csv
 python export_trades.py --all-alphas --stop-loss -3.0
 ```
 
-## 📊 Report Types
+## Report Types
 
 ### **1. Interval Reports (PDF)**
 - **Per-alpha analysis** across multiple time periods
@@ -149,13 +148,13 @@ python export_trades.py --all-alphas --stop-loss -3.0
 - **Performance validation**: Trade impacts vs portfolio returns
 - **Stop-loss analysis**: Risk management effectiveness
 
-### **4. Out-of-Sample Validation**
+### **4. Out-of-Sample Validation** (Possibly not needed anymore)
 - **Rigorous time-split validation**: In-sample discovery → OOS testing
 - **Statistical significance**: Avoiding overfitting
 - **Performance degradation analysis**: Real-world robustness
 - **Factor attribution**: Understanding return sources
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### **1. Installation**
 ```bash
@@ -233,7 +232,7 @@ python multi_crypto_ml_training.py
 python src/ml_forecast_prob_dist.py
 ```
 
-## 📈 Performance Examples
+## Performance Examples
 
 ### **Traditional vs High-Frequency**
 | Mode | Interval | Data Points | Precision | Use Case |
@@ -245,7 +244,7 @@ python src/ml_forecast_prob_dist.py
 
 ### **Real Performance Results**
 ```
-📊 Alpha003 + Stop-Loss Performance:
+   Alpha003 + Stop-Loss Performance:
    Total Return: 7.54% (vs 9.03% without stop-loss)
    Volatility: 47.07% (vs 48.65% without stop-loss)  
    Sharpe Ratio: 0.32 (vs 0.34 without stop-loss)
@@ -253,12 +252,12 @@ python src/ml_forecast_prob_dist.py
    Risk Reduction: -1.59% volatility, controlled downside
 ```
 
-## 🛡️ Risk Management Features
+## Risk Management Features
 
 ### **Stop-Loss Implementation**
 - **Individual position tracking**: Monitor each trade's P&L
 - **Real-time risk control**: Automatic position exit on losses
-- **Multiple strategies**: Portfolio vs position-level stops
+- **Multiple strategies**: Portfolio (to implement) vs position-level stops
 - **Performance impact analysis**: Risk vs return trade-offs
 
 ### **Trade Validation**
@@ -267,7 +266,7 @@ python src/ml_forecast_prob_dist.py
 - **Signal integrity**: ML signals properly interpreted
 - **Statistical validation**: Significance testing
 
-## 🤖 Machine Learning Integration
+## Machine Learning Integration
 
 ### **ML Alpha Strategies**
 - **Alpha998**: Multi-crypto ML signals with regime detection
@@ -287,9 +286,9 @@ python src/ml_forecast_prob_dist.py
 python main.py combine  # Uses alpha998/999 automatically
 ```
 
-## 📊 Validation Framework
+## Validation Framework
 
-### **Out-of-Sample Testing**
+### **Out-of-Sample Testing** (again, possibly not needed; I mainly use interval)
 ```bash
 # Rigorous validation with time splits
 python main.py oos --stop-loss -3.0
@@ -308,7 +307,7 @@ core_alphas = ['alpha003', 'alpha041', 'alpha054', 'alpha083']
 mega_alpha = combine_alphas(alpha_calculator, core_alphas)
 ```
 
-## 🔬 Research Workflow
+## Research Workflow
 
 ### **1. Alpha Discovery**
 ```bash
@@ -325,7 +324,7 @@ python main.py interval --stop-loss -3.0
 python export_trades.py alpha003 --stop-loss -3.0
 ```
 
-### **3. Validation**
+### **3. Validation** (keep using interval)
 ```bash
 # Out-of-sample validation
 python main.py oos
@@ -340,13 +339,13 @@ python main.py factor
 python main.py combine --crypto-mode --interval 1h --stop-loss -2.0
 ```
 
-## 🚀 Future Roadmap
+## Future Roadmap
 
-### **Immediate Priorities**
+### **Short- and Mid-term Priorities**
+- [ ] **Portfolio optimization**: Modern portfolio theory integration
 - [ ] **Multi-exchange support**: Coinbase, Kraken integration
 - [ ] **Real-time streaming**: Live data feeds
 - [ ] **Options strategies**: Derivatives backtesting
-- [ ] **Portfolio optimization**: Modern portfolio theory integration
 
 ### **Advanced Features**
 - [ ] **Risk factor models**: Multi-factor risk attribution
@@ -360,7 +359,7 @@ python main.py combine --crypto-mode --interval 1h --stop-loss -2.0
 - [ ] **Behavioral factors**: Investor sentiment integration
 - [ ] **ESG strategies**: Sustainable investing alphas
 
-## 📚 Dependencies
+## Dependencies
 
 **Core Libraries:**
 ```
@@ -382,7 +381,7 @@ pandas-datareader    # Factor data
 torch>=1.12.0        # ML models (for alpha998/999)
 ```
 
-## 🎯 Getting Started
+## Getting Started
 
 ### **For Beginners**
 1. Start with `python main.py combine` for basic analysis
@@ -403,7 +402,6 @@ torch>=1.12.0        # ML models (for alpha998/999)
 
 ---
 
-**This framework transforms quantitative research from academic concepts into production-ready trading strategies with enterprise-grade risk management and high-frequency capabilities.**
 
-🚀 **Ready to start? Run `python main.py combine --crypto-mode --interval 1h` for your first high-frequency crypto backtest!**
+
 
