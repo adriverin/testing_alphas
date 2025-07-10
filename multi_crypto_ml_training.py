@@ -55,6 +55,13 @@ if __name__ == "__main__":
     base_config = ImprovedConfig(
         start="2020-01-01",
         end="2024-10-01", 
+
+        interval="4h",
+        forecast_horizon_hours=6,  # 1 day ahead prediction
+        vol_window_hours=60,       # 10 days for volatility estimation
+        ema_windows=(0.5, 1, 3, 6, 12),
+        rsi_windows=(3, 6, 12, 24),     
+
         n_quantiles=5,
         hidden_sizes=(64, 32, 16),
         n_epochs=30,
