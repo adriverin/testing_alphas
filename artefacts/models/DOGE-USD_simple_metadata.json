@@ -1,0 +1,248 @@
+{
+  "config": {
+    "symbol": "DOGE-USD",
+    "start": "2023-12-01",
+    "end": "2024-01-15",
+    "interval": "1h",
+    "forecast_horizon_hours": 24,
+    "vol_window_hours": 24,
+    "sma_windows": [
+      2,
+      5,
+      10,
+      20,
+      30
+    ],
+    "volatility_windows": [
+      5,
+      10,
+      20
+    ],
+    "momentum_windows": [
+      1,
+      3,
+      7,
+      14
+    ],
+    "rsi_windows": [
+      7,
+      14,
+      21
+    ],
+    "enable_regime_features": false,
+    "volatility_regime_window": 60,
+    "feature_stability_window": 90,
+    "max_feature_drift": 0.3,
+    "n_quantiles": 5,
+    "hidden_sizes": [
+      128,
+      64,
+      32
+    ],
+    "dropout_rate": 0.2,
+    "training_mode": "simple",
+    "n_epochs": 5,
+    "lr": 5e-05,
+    "weight_decay": 0.0001,
+    "batch_size": 256,
+    "test_fraction": 0.2,
+    "train_ratio": 0.6,
+    "val_ratio": 0.2,
+    "test_ratio": 0.2,
+    "min_train_samples": 500,
+    "validation_months": 6,
+    "walk_forward_step": 30,
+    "n_ensemble_models": 3,
+    "early_stopping_patience": 10,
+    "min_improvement": 0.0001,
+    "threshold": 0.4,
+    "signal_percentiles": [
+      15,
+      85
+    ],
+    "cache_dir": "artefacts",
+    "device": "cpu",
+    "verbose": false,
+    "plot_reliability": true,
+    "random_seed": 42,
+    "model_cache_dir": "artefacts/models",
+    "signals_cache_dir": "artefacts/signals",
+    "data_cache_dir": "artefacts/data"
+  },
+  "model_info": {
+    "model_type": "MLPClassifier",
+    "total_parameters": 13573,
+    "trainable_parameters": 13573,
+    "device": "cpu",
+    "layer_dimensions": [
+      23,
+      128,
+      64,
+      32,
+      5
+    ]
+  },
+  "quantile_edges": [
+    -0.7621792121134469,
+    -0.1720413726872681,
+    0.2769717886385413,
+    0.7201873833427478
+  ],
+  "feature_names": [
+    "sma_2d",
+    "sma_5d",
+    "sma_10d",
+    "sma_20d",
+    "sma_30d",
+    "vol_5d",
+    "vol_10d",
+    "vol_20d",
+    "mom_1d",
+    "mom_3d",
+    "mom_7d",
+    "mom_14d",
+    "rsi_7d",
+    "rsi_14d",
+    "rsi_21d",
+    "price_pos_10d",
+    "price_pos_20d",
+    "price_pos_50d",
+    "vol_of_vol",
+    "realized_vol_5d",
+    "realized_vol_10d",
+    "realized_vol_20d",
+    "vol_ratio"
+  ],
+  "signal_distribution": {
+    "0": 526,
+    "1": 264,
+    "-1": 264
+  },
+  "training_history": {
+    "train_loss": [
+      1.664064198732376,
+      1.651154339313507,
+      1.6713715493679047,
+      1.6660601794719696,
+      1.6648328602313995
+    ],
+    "val_loss": [
+      1.6063885688781738,
+      1.6065146923065186,
+      1.606589913368225,
+      1.6067149639129639,
+      1.6068637371063232
+    ],
+    "val_accuracy": [
+      0.24644549763033174,
+      0.24644549763033174,
+      0.24644549763033174,
+      0.24170616113744076,
+      0.24170616113744076
+    ],
+    "learning_rate": [
+      5e-05,
+      5e-05,
+      5e-05,
+      5e-05,
+      5e-05
+    ]
+  },
+  "evaluation_results": {
+    "tag": "Test",
+    "accuracy": 0.24170616113744076,
+    "confusion_matrix": "[[ 2 25  2  2  3]\n [ 0 29  6  9  4]\n [ 3 28  6 10 10]\n [ 1 18  6  7  0]\n [ 0 25  5  3  7]]",
+    "classification_report": "              precision    recall  f1-score   support\n\n  Quantile_0       0.33      0.06      0.10        34\n  Quantile_1       0.23      0.60      0.34        48\n  Quantile_2       0.24      0.11      0.15        57\n  Quantile_3       0.23      0.22      0.22        32\n  Quantile_4       0.29      0.17      0.22        40\n\n    accuracy                           0.24       211\n   macro avg       0.26      0.23      0.20       211\nweighted avg       0.26      0.24      0.21       211\n",
+    "reliability_stats": {
+      "class_0": {
+        "ece": 0.0334953904434403,
+        "fraction_of_positives": [
+          0.1566265060240964,
+          0.17777777777777778
+        ],
+        "mean_predicted_value": [
+          0.19195595213088645,
+          0.20450757344563802
+        ]
+      },
+      "class_1": {
+        "ece": 0.019238693524875918,
+        "fraction_of_positives": [
+          0.2222222222222222,
+          0.22797927461139897
+        ],
+        "mean_predicted_value": [
+          0.1950223743915558,
+          0.2094830742462929
+        ]
+      },
+      "class_2": {
+        "ece": 0.06858330972104275,
+        "fraction_of_positives": [
+          0.32941176470588235,
+          0.23015873015873015
+        ],
+        "mean_predicted_value": [
+          0.19568217379205366,
+          0.20552327093623934
+        ]
+      },
+      "class_3": {
+        "ece": 0.04496039979830737,
+        "fraction_of_positives": [
+          0.13725490196078433,
+          0.1896551724137931
+        ],
+        "mean_predicted_value": [
+          0.19211897068943073,
+          0.20849037119026842
+        ]
+      },
+      "class_4": {
+        "ece": 0.03892384074028069,
+        "fraction_of_positives": [
+          0.14678899082568808,
+          0.23529411764705882
+        ],
+        "mean_predicted_value": [
+          0.19352847488101468,
+          0.20472227270696677
+        ]
+      },
+      "overall_ece": 0.041040326845589406
+    },
+    "prediction_distribution": {
+      "quantile_0": {
+        "count": 6,
+        "percentage": 2.843601895734597
+      },
+      "quantile_1": {
+        "count": 125,
+        "percentage": 59.241706161137444
+      },
+      "quantile_2": {
+        "count": 25,
+        "percentage": 11.848341232227488
+      },
+      "quantile_3": {
+        "count": 31,
+        "percentage": 14.691943127962084
+      },
+      "quantile_4": {
+        "count": 24,
+        "percentage": 11.374407582938389
+      }
+    },
+    "calibration_metrics": {
+      "brier_score": 0.7989562179760543,
+      "log_loss": 1.6068633930378051,
+      "confidence_stats": {
+        "mean_max_prob": 0.21101953089237213,
+        "std_max_prob": 0.004568850621581078,
+        "min_max_prob": 0.20265507698059082,
+        "max_max_prob": 0.22320523858070374
+      }
+    }
+  },
+  "mode": "simple"
+}

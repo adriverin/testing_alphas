@@ -1,72 +1,130 @@
-# multi_crypto_ml_training.py
-from src.ml_forecast_improved import run_improved_training, ImprovedConfig
+"""
+Multi-Cryptocurrency ML Training Script (Updated)
+=================================================
+
+Updated to use the new centralized ml_forecasting module.
+
+This script now leverages the enhanced ml_forecasting module which provides:
+- Unified configuration management
+- Better error handling and parallel training support
+- Enhanced signal analysis and model evaluation
+- Backward compatibility with the original interface
+
+For the legacy interface, see MIGRATION_GUIDE.md
+"""
+
+# Import from the new centralized module
+from src.ml_forecasting import MLConfig, train_multi_crypto_models as train_models_new
 import pandas as pd
 from pathlib import Path
 
-def train_multi_crypto_models(assets: list, base_config: ImprovedConfig):
-    """Train separate ML models for each cryptocurrency."""
+def train_multi_crypto_models(assets: list, base_config):
+    """
+    Legacy wrapper function for backward compatibility.
     
-    print(f"🚀 Training ML models for {len(assets)} cryptocurrencies")
-    all_signals = {}
+    This function maintains the original interface while using the new
+    centralized ml_forecasting module under the hood.
+    """
     
-    for asset in assets:
-        print(f"\n📊 Training model for {asset}...")
-        
-        # Create asset-specific config
-        asset_config = ImprovedConfig(
-            symbol=asset,
+    print("🔄 Using legacy interface with new centralized module")
+    print("ℹ️  Consider migrating to the new interface - see MIGRATION_GUIDE.md")
+    
+    # Convert legacy config to new MLConfig if needed
+    if hasattr(base_config, 'enable_regime_features'):
+        # Convert ImprovedConfig to MLConfig
+        new_config = MLConfig.for_improved_training(
             start=base_config.start,
             end=base_config.end,
+            interval=getattr(base_config, 'interval', '4h'),
+            forecast_horizon_hours=getattr(base_config, 'forecast_horizon_hours', 6),
+            vol_window_hours=getattr(base_config, 'vol_window_hours', 60),
             n_quantiles=base_config.n_quantiles,
             hidden_sizes=base_config.hidden_sizes,
             n_epochs=base_config.n_epochs,
             lr=base_config.lr,
             enable_regime_features=base_config.enable_regime_features
         )
-        
-        # Train asset-specific model
-        results = run_improved_training(asset_config)
-        
-        # Store signals with asset identifier
-        asset_signals = results['signals']
-        asset_signals.name = asset
-        all_signals[asset] = asset_signals
-        
-        print(f"✅ {asset} model complete: {asset_signals.value_counts().to_dict()}")
+    else:
+        # Assume it's already an MLConfig
+        new_config = base_config
     
-    # Combine all signals into MultiIndex DataFrame
-    signals_df = pd.DataFrame(all_signals)
+    # Use the new centralized function
+    results = train_models_new(
+        assets=assets,
+        base_config=new_config,
+        parallel=False  # Keep sequential for backward compatibility
+    )
     
-    # Save combined signals
+    # Extract signals_df for backward compatibility
+    signals_df = results['signals_df']
+    
+    # Save to legacy location for compatibility
     output_dir = Path("artefacts/improved_ml")
     output_dir.mkdir(parents=True, exist_ok=True)
     signals_df.to_parquet(output_dir / "multi_crypto_signals.parquet")
     
-    print(f"💾 Saved combined signals for {len(assets)} assets")
+    print(f"💾 Saved to legacy location: {output_dir / 'multi_crypto_signals.parquet'}")
+    print(f"📊 New enhanced results also available in: artefacts/multi_asset/")
+    
     return signals_df
 
 # Usage
 if __name__ == "__main__":
-    # sp100_tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD', 'PEPE24478-USD']
+    print("🚀 Multi-Crypto ML Training Script")
+    print("=" * 50)
+    
+    # Example 1: Using legacy interface (for backward compatibility)
+    print("\n📊 Example 1: Legacy Interface")
+    crypto_assets_legacy = ['DOGE-USD']
 
-    # crypto_assets = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
-    crypto_assets = ['DOGE-USD']
-
-    base_config = ImprovedConfig(
+    # Create config using the new MLConfig but compatible parameters
+    base_config_legacy = MLConfig.for_improved_training(
         start="2020-01-01",
-        end="2024-10-01", 
-
+        end="2024-01-15",  # Shorter period for demo
         interval="4h",
-        forecast_horizon_hours=6,  # 1 day ahead prediction
-        vol_window_hours=60,       # 10 days for volatility estimation
-        ema_windows=(0.5, 1, 3, 6, 12),
-        rsi_windows=(3, 6, 12, 24),     
-
+        forecast_horizon_hours=6,
+        vol_window_hours=60,
         n_quantiles=5,
         hidden_sizes=(64, 32, 16),
-        n_epochs=30,
+        n_epochs=10,  # Reduced for demo
         lr=1e-4,
         enable_regime_features=True
     )
     
-    train_multi_crypto_models(crypto_assets, base_config)
+    # Use legacy wrapper
+    signals_df_legacy = train_multi_crypto_models(crypto_assets_legacy, base_config_legacy)
+    print(f"✅ Legacy interface complete: {signals_df_legacy.shape}")
+    
+    # Example 2: Using new interface directly (recommended)
+    print("\n📊 Example 2: New Centralized Interface")
+    crypto_assets_new = ['DOGE-USD', 'BTC-USD']
+    
+    base_config_new = MLConfig.for_improved_training(
+        start="2020-01-01", 
+        end="2024-01-15",  # Shorter period for demo
+        interval="4h",
+        forecast_horizon_hours=6,
+        vol_window_hours=60,
+        n_quantiles=5,
+        hidden_sizes=(64, 32, 16),
+        n_epochs=10,  # Reduced for demo
+        lr=1e-4,
+        enable_regime_features=True,
+        verbose=False
+    )
+    
+    # Use new centralized interface directly
+    results_new = train_models_new(
+        assets=crypto_assets_new,
+        base_config=base_config_new,
+        parallel=True,  # Enable parallel training
+        max_workers=2
+    )
+    
+    print(f"✅ New interface complete:")
+    print(f"   Signals shape: {results_new['signals_df'].shape}")
+    print(f"   Successful assets: {results_new['summary']['successful_assets']}")
+    print(f"   Training time: {results_new['summary']['total_training_time']:.1f}s")
+    
+    print("\n🎉 Multi-crypto training demonstration complete!")
+    print("📋 Check MIGRATION_GUIDE.md for full migration instructions")

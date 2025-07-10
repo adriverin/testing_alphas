@@ -1,0 +1,254 @@
+{
+  "config": {
+    "symbol": "DOGE-USD",
+    "start": "2023-12-01",
+    "end": "2024-01-15",
+    "interval": "1h",
+    "forecast_horizon_hours": 24,
+    "vol_window_hours": 24,
+    "sma_windows": [
+      2,
+      5,
+      10,
+      20,
+      30
+    ],
+    "volatility_windows": [
+      5,
+      10,
+      20
+    ],
+    "momentum_windows": [
+      1,
+      3,
+      7,
+      14
+    ],
+    "rsi_windows": [
+      7,
+      14,
+      21
+    ],
+    "enable_regime_features": true,
+    "volatility_regime_window": 60,
+    "feature_stability_window": 90,
+    "max_feature_drift": 0.3,
+    "n_quantiles": 5,
+    "hidden_sizes": [
+      64,
+      32,
+      16
+    ],
+    "dropout_rate": 0.5,
+    "training_mode": "improved",
+    "n_epochs": 3,
+    "lr": 0.0001,
+    "weight_decay": 0.01,
+    "batch_size": 256,
+    "test_fraction": 0.2,
+    "train_ratio": 0.6,
+    "val_ratio": 0.2,
+    "test_ratio": 0.2,
+    "min_train_samples": 500,
+    "validation_months": 6,
+    "walk_forward_step": 30,
+    "n_ensemble_models": 3,
+    "early_stopping_patience": 10,
+    "min_improvement": 0.0001,
+    "threshold": 0.4,
+    "signal_percentiles": [
+      15,
+      85
+    ],
+    "cache_dir": "artefacts",
+    "device": "cpu",
+    "verbose": false,
+    "plot_reliability": true,
+    "random_seed": 42,
+    "model_cache_dir": "artefacts/models",
+    "signals_cache_dir": "artefacts/signals",
+    "data_cache_dir": "artefacts/data"
+  },
+  "model_info": {
+    "model_type": "SimpleModel",
+    "total_parameters": 277,
+    "trainable_parameters": 277,
+    "device": "cpu"
+  },
+  "quantile_edges": [
+    -0.7369552231860332,
+    -0.16062833131864349,
+    0.3005074183211471,
+    0.7111923323271546
+  ],
+  "feature_names": [
+    "sma_2d",
+    "sma_5d",
+    "sma_10d",
+    "sma_20d",
+    "sma_30d",
+    "vol_5d",
+    "vol_10d",
+    "vol_20d",
+    "mom_1d",
+    "mom_3d",
+    "mom_7d",
+    "mom_14d",
+    "rsi_7d",
+    "rsi_14d",
+    "rsi_21d",
+    "price_pos_10d",
+    "price_pos_20d",
+    "price_pos_50d",
+    "vol_regime",
+    "trend_regime_5d",
+    "trend_regime_20d",
+    "momentum_regime",
+    "vol_clustering",
+    "vol_of_vol",
+    "realized_vol_5d",
+    "realized_vol_10d",
+    "realized_vol_20d",
+    "vol_ratio"
+  ],
+  "signal_distribution": {
+    "0": 704,
+    "-1": 151,
+    "1": 151
+  },
+  "training_history": {
+    "train_loss": [
+      2.28252641359965,
+      2.2173147201538086,
+      2.2851267655690513
+    ],
+    "val_loss": [
+      1.718644142150879,
+      1.717944622039795,
+      1.7172592878341675
+    ],
+    "val_accuracy": [
+      0.22395833333333334,
+      0.22395833333333334,
+      0.22395833333333334
+    ],
+    "learning_rate": [
+      0.0001,
+      0.0001,
+      0.0001
+    ]
+  },
+  "evaluation_results": {
+    "tag": "Test",
+    "accuracy": 0.1875,
+    "confusion_matrix": "[[19  0  0  0 16]\n [19  0  0  0 21]\n [24  0  0  0 27]\n [14  0  0  0 15]\n [20  0  0  0 17]]",
+    "classification_report": "              precision    recall  f1-score   support\n\n  Quantile_0       0.20      0.54      0.29        35\n  Quantile_1       0.00      0.00      0.00        40\n  Quantile_2       0.00      0.00      0.00        51\n  Quantile_3       0.00      0.00      0.00        29\n  Quantile_4       0.18      0.46      0.26        37\n\n    accuracy                           0.19       192\n   macro avg       0.07      0.20      0.11       192\nweighted avg       0.07      0.19      0.10       192\n",
+    "reliability_stats": {
+      "class_0": {
+        "ece": 0.09778695429364839,
+        "fraction_of_positives": [
+          0.15217391304347827,
+          0.18518518518518517,
+          0.21621621621621623,
+          0.17857142857142858
+        ],
+        "mean_predicted_value": [
+          0.16492743466211401,
+          0.2569791356354584,
+          0.3445658732104946,
+          0.45086377433368136
+        ]
+      },
+      "class_1": {
+        "ece": 0.03503114745641747,
+        "fraction_of_positives": [
+          0.08333333333333333,
+          0.2222222222222222,
+          0.20833333333333334
+        ],
+        "mean_predicted_value": [
+          0.09112783210972945,
+          0.16427025764628692,
+          0.21352271652883953
+        ]
+      },
+      "class_2": {
+        "ece": 0.16226339992135763,
+        "fraction_of_positives": [
+          0.2988505747126437,
+          0.23809523809523808
+        ],
+        "mean_predicted_value": [
+          0.07638169041481511,
+          0.125716394895599
+        ]
+      },
+      "class_3": {
+        "ece": 0.020433371188119047,
+        "fraction_of_positives": [
+          0.2,
+          0.1404494382022472,
+          0.5
+        ],
+        "mean_predicted_value": [
+          0.08426799699664116,
+          0.14932016534416864,
+          0.20327577367424965
+        ]
+      },
+      "class_4": {
+        "ece": 0.12224478631590804,
+        "fraction_of_positives": [
+          0.2,
+          0.18840579710144928,
+          0.12195121951219512,
+          0.35714285714285715,
+          0.36363636363636365,
+          0.0
+        ],
+        "mean_predicted_value": [
+          0.15465350031852723,
+          0.24788429620473282,
+          0.34867291479575924,
+          0.4469575264624187,
+          0.5495997613126581,
+          0.6430089729172843
+        ]
+      },
+      "overall_ece": 0.08755193183509011
+    },
+    "prediction_distribution": {
+      "quantile_0": {
+        "count": 96,
+        "percentage": 50.0
+      },
+      "quantile_1": {
+        "count": 0,
+        "percentage": 0.0
+      },
+      "quantile_2": {
+        "count": 0,
+        "percentage": 0.0
+      },
+      "quantile_3": {
+        "count": 0,
+        "percentage": 0.0
+      },
+      "quantile_4": {
+        "count": 96,
+        "percentage": 50.0
+      }
+    },
+    "calibration_metrics": {
+      "brier_score": 0.8671428874583805,
+      "log_loss": 1.7748283032948773,
+      "confidence_stats": {
+        "mean_max_prob": 0.37062323093414307,
+        "std_max_prob": 0.09740688651800156,
+        "min_max_prob": 0.240714892745018,
+        "max_max_prob": 0.6601418256759644
+      }
+    }
+  },
+  "mode": "improved"
+}
