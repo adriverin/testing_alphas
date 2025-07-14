@@ -41,7 +41,7 @@ tickers = [
 
 # tickers = ['BTC-USD']
 # tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
-tickers = ['BTC-USD']
+# tickers = ['BTC-USD']
 
 start_date = '2025-01-01'  
 end_date = '2025-07-10'    
@@ -51,8 +51,8 @@ end_date = '2025-07-10'
 number_of_intervals = 1
 
 # --- Define the first and last alpha to test ---
-first_alpha = 999  # Use alpha999 for ML-based signals (recommended)
-last_alpha = 999   # Same as first_alpha for single alpha mode
+first_alpha = 1  # Use alpha999 for ML-based signals (recommended)
+last_alpha = 5   # Same as first_alpha for single alpha mode
 
 
 
@@ -87,9 +87,9 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
         help='Individual position stop-loss percentage (e.g., -5.0 for 5%% loss). Applies to interval, summary, oos, and combine analyses.'
     )
     parser.add_argument(
-        '--crypto-mode',
+        '--stock-mode',
         action='store_true',
-        help='Use Binance crypto data instead of yfinance stock data'
+        help='Use yfinance stock data instead of Binance crypto data'
     )
     parser.add_argument(
         '--interval',
@@ -119,17 +119,17 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
     print("--- Loading Full Dataset ---")
     
     # Choose data source based on mode
-    if args.crypto_mode:
+    if args.stock_mode:
+        print("📈 Stock mode - using yfinance data")
+        price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)        
+    else:
         print(f"🔥 Crypto mode enabled - using Binance data with {args.interval} interval")
         # Filter to crypto tickers only
         crypto_tickers = [t for t in tickers if '-USD' in t]
         if not crypto_tickers:
             print("❌ No crypto tickers found. Use format like 'BTC-USD', 'ETH-USD'")
             return
-        price_data = get_crypto_data(crypto_tickers, start_date=start_date, end_date=end_date, interval=args.interval)
-    else:
-        print("📈 Stock mode - using yfinance data")
-        price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)
+        price_data = get_crypto_data(crypto_tickers, start_date=start_date, end_date=end_date, interval=args.interval)        
     
     if price_data.empty:
         print("Could not load data. Exiting.")
