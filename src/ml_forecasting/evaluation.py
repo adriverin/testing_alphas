@@ -13,6 +13,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.calibration import calibration_curve
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend to prevent GUI issues
 import matplotlib.pyplot as plt
 from typing import Dict, Tuple, Optional
 import seaborn as sns
@@ -112,8 +114,13 @@ class ModelEvaluator:
     
     def _get_classification_report(self, predictions: np.ndarray, actual_labels: np.ndarray) -> str:
         """Get detailed classification report."""
-        target_names = [f"Quantile_{i}" for i in range(self.config.n_quantiles)]
-        return classification_report(actual_labels, predictions, target_names=target_names)
+        # Get actual classes present in the data
+        all_classes = np.union1d(actual_labels, predictions)
+        target_names = [f"Quantile_{i}" for i in all_classes]
+        
+        # Use only the classes that actually exist
+        return classification_report(actual_labels, predictions, 
+                                   labels=all_classes, target_names=target_names)
     
     def _calculate_reliability(self, probabilities: np.ndarray, actual_labels: np.ndarray) -> Dict:
         """Calculate reliability/calibration statistics."""
@@ -239,6 +246,16 @@ class ModelEvaluator:
                                   predictions: np.ndarray, tag: str):
         """Generate evaluation plots."""
         try:
+            # Check if we're in a subprocess/thread - if so, skip plotting
+            import threading
+            if threading.current_thread() != threading.main_thread():
+                print(f"⚠️  Skipping plot generation in subprocess for {tag}")
+                return
+            
+            # Use non-interactive backend for headless operation
+            import matplotlib
+            matplotlib.use('Agg')  # Use non-interactive backend
+            
             fig, axes = plt.subplots(2, 2, figsize=(12, 10))
             fig.suptitle(f'{tag} Set Evaluation', fontsize=16)
             

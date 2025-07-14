@@ -73,52 +73,75 @@ if __name__ == "__main__":
     print("🚀 Multi-Crypto ML Training Script")
     print("=" * 50)
     
-    # Example 1: Using legacy interface (for backward compatibility)
-    print("\n📊 Example 1: Legacy Interface")
-    crypto_assets_legacy = ['DOGE-USD']
+    # # Example 1: Using legacy interface (for backward compatibility)
+    # print("\n📊 Example 1: Legacy Interface")
+    # crypto_assets_legacy = ['DOGE-USD']
 
-    # Create config using the new MLConfig but compatible parameters
-    base_config_legacy = MLConfig.for_improved_training(
-        start="2020-01-01",
-        end="2024-01-15",  # Shorter period for demo
-        interval="4h",
-        forecast_horizon_hours=6,
-        vol_window_hours=60,
-        n_quantiles=5,
-        hidden_sizes=(64, 32, 16),
-        n_epochs=10,  # Reduced for demo
-        lr=1e-4,
-        enable_regime_features=True
-    )
+    # # Create config using the new MLConfig but compatible parameters
+    # base_config_legacy = MLConfig.for_improved_training(
+    #     start="2020-01-01",
+    #     end="2024-01-15",  # Shorter period for demo
+    #     interval="4h",
+    #     forecast_horizon_hours=6,
+    #     vol_window_hours=60,
+    #     n_quantiles=5,
+    #     hidden_sizes=(64, 32, 16),
+    #     n_epochs=10,  # Reduced for demo
+    #     lr=1e-4,
+    #     enable_regime_features=True
+    # )
     
-    # Use legacy wrapper
-    signals_df_legacy = train_multi_crypto_models(crypto_assets_legacy, base_config_legacy)
-    print(f"✅ Legacy interface complete: {signals_df_legacy.shape}")
-    
-    # Example 2: Using new interface directly (recommended)
-    print("\n📊 Example 2: New Centralized Interface")
-    crypto_assets_new = ['DOGE-USD', 'BTC-USD']
+    # # Use legacy wrapper
+    # signals_df_legacy = train_multi_crypto_models(crypto_assets_legacy, base_config_legacy)
+    # print(f"✅ Legacy interface complete: {signals_df_legacy.shape}")
+
+
+
+    crypto_assets_new = ['ETH-USD']
     
     base_config_new = MLConfig.for_improved_training(
-        start="2020-01-01", 
-        end="2024-01-15",  # Shorter period for demo
-        interval="4h",
+        start="2018-01-01", 
+        end="2024-12-31",  
+        interval="1h",
         forecast_horizon_hours=6,
-        vol_window_hours=60,
-        n_quantiles=5,
+        vol_window_hours=24,
+        n_quantiles=7,
         hidden_sizes=(64, 32, 16),
-        n_epochs=10,  # Reduced for demo
-        lr=1e-4,
+        n_epochs=100,  
+        lr=5e-5,
         enable_regime_features=True,
-        verbose=False
+        verbose=False,
+        sma_windows=(5, 10, 20, 30, 40, 50),
+        volatility_windows=(3, 5, 10, 20, 30),
+        momentum_windows=(3, 7, 14, 21, 30, 40),
+        rsi_windows=(3, 7, 14, 21, 30, 40, 50),
+        signal_percentiles=(2, 98)
+        # signal_percentiles=(3, 97)
     )
+
+    # FOLLOWING PREDICTS 36% OF QUINTILES??? STILL LEAD TO BAD RETURNS SOMEHOW
+    # crypto_assets_new = ['PEPE-USD']
+    
+    # base_config_new = MLConfig.for_improved_training(
+    #     start="2023-06-01", 
+    #     end="2024-12-31",  
+    #     interval="1h",
+    #     forecast_horizon_hours=2,
+    #     vol_window_hours=24,
+    #     n_quantiles=5,
+    #     hidden_sizes=(32, 16, 8),
+    #     n_epochs=100,  # Reduced for demo
+    #     lr=5e-5,
+    #     enable_regime_features=True,
+    #     verbose=False
+    # )
     
     # Use new centralized interface directly
     results_new = train_models_new(
         assets=crypto_assets_new,
         base_config=base_config_new,
-        parallel=True,  # Enable parallel training
-        max_workers=2
+        parallel=False,  # Enable parallel training
+        max_workers=1
     )
     
     print(f"✅ New interface complete:")
@@ -126,5 +149,5 @@ if __name__ == "__main__":
     print(f"   Successful assets: {results_new['summary']['successful_assets']}")
     print(f"   Training time: {results_new['summary']['total_training_time']:.1f}s")
     
-    print("\n🎉 Multi-crypto training demonstration complete!")
-    print("📋 Check MIGRATION_GUIDE.md for full migration instructions")
+    # print("\n🎉 Multi-crypto training demonstration complete!")
+    # print("📋 Check MIGRATION_GUIDE.md for full migration instructions")

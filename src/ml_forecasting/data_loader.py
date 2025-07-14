@@ -1,53 +1,57 @@
 """
-Data Loading and Preprocessing
-==============================
+ML Data Loading
+===============
 
-Centralized data loading functionality for ML forecasting.
-Extracted and improved from original ml_forecast_prob_dist.py.
+Enhanced data loading for ML forecasting with intelligent caching.
+Supports both direct loading and feature engineering pipelines.
 """
 
 import pandas as pd
 import numpy as np
-import ccxt
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 import warnings
-warnings.filterwarnings("ignore")
+
+# Import exchange libraries
+try:
+    import ccxt
+    CCXT_AVAILABLE = True
+except ImportError:
+    CCXT_AVAILABLE = False
 
 from .config import MLConfig
 
 
-def bar_size_hours(interval: str) -> float:
+def load_and_validate_data(config: MLConfig) -> pd.DataFrame:
     """
-    Convert interval string to hours.
+    Main entry point for loading and validating price data.
     
     Args:
-        interval: Time interval string (e.g., '1m', '5m', '1h', '4h', '1d')
+        config: ML configuration object
         
     Returns:
-        Number of hours in the interval
+        DataFrame with timestamp index and processed price data
         
-    Examples:
-        >>> bar_size_hours('1m')
-        0.016666666666666666
-        >>> bar_size_hours('1h') 
-        1.0
-        >>> bar_size_hours('1d')
-        24.0
+    Raises:
+        RuntimeError: If data loading fails
     """
-    if interval.endswith('m'):
-        return int(interval[:-1]) / 60
-    elif interval.endswith('h'):
-        return int(interval[:-1])
-    elif interval.endswith('d'):
-        return int(interval[:-1]) * 24
-    else:
-        raise ValueError(f"Unknown interval format: {interval}")
+    print(f"📊 Loading data for {config.symbol} ({config.start} to {config.end})")
+    
+    # Load raw price data
+    df = load_price_history(config)
+    
+    # Validate and clean
+    df = validate_data(df, config)
+    
+    # Apply basic preprocessing
+    df = preprocess_data(df, config)
+    
+    return df
 
 
 def load_price_history(config: MLConfig) -> pd.DataFrame:
     """
-    Load price history from cache or fetch from exchange.
+    Load price history with intelligent caching that detects date range changes.
     
     Args:
         config: ML configuration object
@@ -64,33 +68,42 @@ def load_price_history(config: MLConfig) -> pd.DataFrame:
         f"prices_{config.symbol.replace('/', '').replace('-', '')}_{config.interval}.parquet"
     )
     
-    # Try loading from cache first
+    start_date_dt = pd.to_datetime(config.start, utc=True)
+    end_date_dt = pd.to_datetime(config.end, utc=True)
+    
+    print(f"📅 Requested date range: {config.start} to {config.end}")
+    
+    # **INTELLIGENT CACHE VALIDATION**
     if cache_file.exists():
         try:
-            df = pd.read_parquet(cache_file)
-            if not df.empty:
-                print(f"📁 Loaded {len(df)} rows from cache: {cache_file.name}")
+            cached_df = pd.read_parquet(cache_file)
+            
+            if not cached_df.empty:
+                cache_start = cached_df.index.min()
+                cache_end = cached_df.index.max()
                 
-                # Validate date range
-                if hasattr(df.index, 'min') and hasattr(df.index, 'max'):
-                    cache_start = df.index.min()
-                    cache_end = df.index.max()
-                    requested_start = pd.to_datetime(config.start, utc=True)
-                    requested_end = pd.to_datetime(config.end, utc=True)
-                    
-                    # Check if cache covers requested range
-                    if cache_start <= requested_start and cache_end >= requested_end:
-                        # Filter to requested range
-                        mask = (df.index >= requested_start) & (df.index <= requested_end)
-                        return df[mask]
-                    else:
-                        print(f"⚠️  Cache range ({cache_start} to {cache_end}) doesn't cover requested range ({requested_start} to {requested_end})")
-                        print("🔄 Fetching fresh data...")
+                print(f"📊 Cached date range: {cache_start.strftime('%Y-%m-%d')} to {cache_end.strftime('%Y-%m-%d')}")
+                
+                # **KEY FIX: Check if requested range is FULLY COVERED by cache**
+                if start_date_dt >= cache_start and end_date_dt <= cache_end:
+                    print(f"✅ Cache fully covers requested range. Using cached data.")
+                    # Filter to requested range
+                    mask = (cached_df.index >= start_date_dt) & (cached_df.index <= end_date_dt)
+                    return cached_df[mask]
                 else:
-                    return df
+                    print(f"🔄 Requested range extends beyond cached data:")
+                    if start_date_dt < cache_start:
+                        print(f"   • Start date {config.start} is before cached start {cache_start.strftime('%Y-%m-%d')}")
+                    if end_date_dt > cache_end:
+                        print(f"   • End date {config.end} is after cached end {cache_end.strftime('%Y-%m-%d')}")
+                    print("   → Fetching fresh data...")
+            else:
+                print(f"🔄 Cache file is empty. Fetching fresh data...")
+                
         except Exception as e:
-            print(f"⚠️  Error loading cache: {e}")
-            print("🔄 Fetching fresh data...")
+            print(f"🔄 Error loading cache: {e}. Fetching fresh data...")
+    else:
+        print(f"📂 No cache file found. Fetching fresh data...")
     
     # Fetch from exchange
     print(f"🌐 Fetching {config.symbol} data from Binance...")
@@ -99,7 +112,10 @@ def load_price_history(config: MLConfig) -> pd.DataFrame:
     # Save to cache
     try:
         df.to_parquet(cache_file)
+        actual_start = df.index.min()
+        actual_end = df.index.max()
         print(f"💾 Saved {len(df)} rows to cache: {cache_file.name}")
+        print(f"✅ Downloaded and cached: {actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}")
     except Exception as e:
         print(f"⚠️  Warning: Could not save to cache: {e}")
     
@@ -119,6 +135,9 @@ def _fetch_from_binance(config: MLConfig) -> pd.DataFrame:
     Raises:
         RuntimeError: If no data can be fetched
     """
+    if not CCXT_AVAILABLE:
+        raise RuntimeError("ccxt library required for crypto data. Install with: pip install ccxt")
+    
     try:
         binance = ccxt.binance({'timeout': 30000})  # 30 second timeout
         
@@ -283,25 +302,58 @@ def preprocess_data(df: pd.DataFrame, config: MLConfig) -> pd.DataFrame:
     return df
 
 
-# Utility functions for backward compatibility
-def load_and_validate_data(config: MLConfig) -> pd.DataFrame:
+def bar_size_hours(interval: str) -> float:
     """
-    Complete data loading and validation pipeline.
+    Convert interval string to hours.
     
     Args:
-        config: ML configuration object
+        interval: Time interval string (e.g., '1h', '4h', '1d')
         
     Returns:
-        Clean, validated DataFrame ready for feature engineering
+        Number of hours per bar
     """
-    # Load data
-    df = load_price_history(config)
+    interval_mapping = {
+        '1m': 1/60,
+        '5m': 5/60,
+        '15m': 15/60,
+        '1h': 1,
+        '4h': 4,
+        '1d': 24,
+        '1w': 168
+    }
     
-    # Validate
-    df = validate_data(df, config)
+    return interval_mapping.get(interval, 1)  # Default to 1 hour
+
+
+def ensure_minimum_history(df: pd.DataFrame, config: MLConfig) -> pd.DataFrame:
+    """
+    Ensure we have enough historical data for feature calculation.
     
-    # Preprocess
-    df = preprocess_data(df, config)
+    Args:
+        df: Price DataFrame
+        config: ML configuration
+        
+    Returns:
+        DataFrame with sufficient history
+        
+    Raises:
+        ValueError: If insufficient data even after extending history
+    """
+    min_required = config.vol_window_hours + max(config.sma_windows) + max(config.momentum_windows)
     
-    print(f"✅ Data loading complete: {len(df)} clean rows")
+    if len(df) < min_required:
+        # Calculate how much more history we need
+        shortage = min_required - len(df)
+        extended_start = df.index.min() - pd.Timedelta(hours=shortage * bar_size_hours(config.interval))
+        
+        print(f"⚠️  Need {shortage} more bars for feature calculation")
+        print(f"📅 Extending start date to {extended_start.strftime('%Y-%m-%d')}")
+        
+        # Create extended config
+        extended_config = MLConfig(**config.to_dict())
+        extended_config.start = extended_start.strftime('%Y-%m-%d')
+        
+        # Reload with extended range
+        return load_and_validate_data(extended_config)
+    
     return df 

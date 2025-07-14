@@ -132,7 +132,7 @@ class Alpha101:
         
         What is this alpha trying to capture?
         Key intuition:
-        - It’s a timing signal: How recently did we see a peak in either price (if performing okay) 
+        - It's a timing signal: How recently did we see a peak in either price (if performing okay) 
           or volatility (if performing poorly)?
         - If price or volatility peaked more recently → higher rank.
         - The idea is: stocks where price or volatility has just peaked may have predictive power 
@@ -140,7 +140,7 @@ class Alpha101:
         Market logic:
         - When returns are bad, you're looking at volatility — perhaps assuming volatility spikes can mean-revert.
         - When returns are good or flat, you're focusing on price behavior — maybe momentum or mean-reversion on price peaks.
-        - By ranking this, you’re trying to spot relative opportunity across a universe of stocks.
+        - By ranking this, you're trying to spot relative opportunity across a universe of stocks.
         """
 
         std_returns = self.stddev(self.returns, 20)
@@ -156,10 +156,10 @@ class Alpha101:
         - If volume change and price move rank correlation is high → alpha is negative (because of -1 multiplier).
         - If volume change and price move rank correlation is low or negative → alpha is positive.
         In other words, it favors stocks where:
-        - Large volume changes aren’t accompanied by similarly ranked intraday price moves (i.e. volume spike without a matching price spike).  
+        - Large volume changes aren't accompanied by similarly ranked intraday price moves (i.e. volume spike without a matching price spike).  
         Market logic:
-        - The alpha may be trying to spot unwarranted volume surges that didn’t move price much — possibly signaling latent pressure (buyers/sellers accumulating without pushing price yet).
-        - Or it could detect potential mean-reversion setups: when high volume didn’t yet translate into price movement, maybe price will catch up next.
+        - The alpha may be trying to spot unwarranted volume surges that didn't move price much — possibly signaling latent pressure (buyers/sellers accumulating without pushing price yet).
+        - Or it could detect potential mean-reversion setups: when high volume didn't yet translate into price movement, maybe price will catch up next.
         """
         x = self.rank(self.delta(np.log(self.volume.replace(0,1)), 2))
         y = self.rank((self.close - self.open) / self.open)
@@ -180,11 +180,11 @@ class Alpha101:
 
     def alpha004(self):
         """Alpha#4: (-1 * Ts_Rank(rank(low), 9))
-        What it’s looking for:
-        - If today’s low price (in rank form) is relatively high vs. the past 9 days → ts_rank is near 1 → alpha is strongly negative (because of -1)
-        - If today’s low price (in rank form) is relatively low vs. the past 9 days → ts_rank is near 0 → alpha is close to 0 (or weakly negative)
+        What it's looking for:
+        - If today's low price (in rank form) is relatively high vs. the past 9 days → ts_rank is near 1 → alpha is strongly negative (because of -1)
+        - If today's low price (in rank form) is relatively low vs. the past 9 days → ts_rank is near 0 → alpha is close to 0 (or weakly negative)
         Why would this make sense?
-        - If the asset’s low prices are getting higher, this might indicate weakening of downward pressure → but this alpha bets against that (so it’s mean-reversion oriented: if low prices have been high, it expects reversal / weakness ahead).
+        - If the asset's low prices are getting higher, this might indicate weakening of downward pressure → but this alpha bets against that (so it's mean-reversion oriented: if low prices have been high, it expects reversal / weakness ahead).
         - If low prices are setting fresh lows → the alpha is less negative → might indicate bottoming / support.
         """
         return 1 * self.ts_rank(self.rank(self.low), 9)
@@ -1056,14 +1056,24 @@ class Alpha101:
         
         This version loads asset-specific ML signals for multi-crypto portfolios.
         Each cryptocurrency gets its own trained model and signals.
+        Updated to work with new centralized ML forecasting system.
         """
         from pathlib import Path
         
-        # Load multi-crypto signals
-        signals_path = Path("artefacts/improved_ml/multi_crypto_signals.parquet")
+        # Define paths for model artifacts (same logic as alpha999)
+        artifacts_dir = Path("artefacts")
+        multi_asset_dir = artifacts_dir / "multi_asset"
+        improved_dir = artifacts_dir / "improved_ml"
         
-        if not signals_path.exists():
-            print(f"❌ Multi-crypto signals not found at {signals_path}")
+        # Try new centralized format first, then legacy
+        if (multi_asset_dir / "multi_crypto_signals_improved.parquet").exists():
+            signals_path = multi_asset_dir / "multi_crypto_signals_improved.parquet"
+            print(f"Alpha998: Using centralized improved signals")
+        elif (improved_dir / "multi_crypto_signals.parquet").exists():
+            signals_path = improved_dir / "multi_crypto_signals.parquet"
+            print(f"Alpha998: Using legacy improved signals")
+        else:
+            print(f"❌ Multi-crypto signals not found")
             print("Run: python multi_crypto_ml_training.py")
             return pd.Series(0.0, index=self.df.index)
         
@@ -1152,12 +1162,12 @@ class Alpha101:
         Alpha#999: ML-Based Threshold Trading Signal
         
         This alpha uses a pre-trained machine learning model to generate trading signals
-        based on probability thresholds. For single-asset portfolios, it uses the ML signals
-        directly as position sizes to avoid the ranking-based backtesting degeneracy.
+        based on probability thresholds. It can either:
+        1. Load pre-computed signals from cache (fast)
+        2. Generate real-time predictions on new data (for backtesting)
         
-        The alpha loads:
-        1. A trained ML model from artefacts/return_model.pt (original) or artefacts/improved_ml/improved_model.pt (validated)
-        2. Pre-computed trading signals from corresponding parquet files
+        For proper backtesting, this will automatically detect if the requested date range
+        is outside the cached signals and generate new predictions using the trained model.
         
         Returns:
             pd.Series: Trading signals (-1, 0, 1) amplified for single-asset portfolios
@@ -1165,44 +1175,132 @@ class Alpha101:
         from pathlib import Path
         import torch
         
-        # Define paths for model artifacts - try improved version first
+        # Define paths for model artifacts - try new centralized format first
         artifacts_dir = Path("artefacts")
+        signals_dir = artifacts_dir / "signals"
+        multi_asset_dir = artifacts_dir / "multi_asset"
         improved_dir = artifacts_dir / "improved_ml"
         
-        # Try improved model first (with proper validation)
-        if (improved_dir / "improved_trading_signals.parquet").exists():
+        # Get unique assets from current dataframe
+        portfolio_assets = self.df.index.get_level_values('asset').unique()
+        primary_asset = portfolio_assets[0] if len(portfolio_assets) > 0 else "BTC-USD"
+        
+        # Get portfolio date range
+        portfolio_start = self.df.index.get_level_values('date').min()
+        portfolio_end = self.df.index.get_level_values('date').max()
+        print(f"Alpha999: Portfolio date range: {portfolio_start} to {portfolio_end}")
+        
+        # First, try to load cached signals and check if they cover our date range
+        cached_signals = None
+        signals_coverage = None
+        
+        # Try new centralized ML forecasting signals first
+        if (multi_asset_dir / "multi_crypto_signals_improved.parquet").exists():
+            # Multi-asset signals from new system
+            multi_signals_path = multi_asset_dir / "multi_crypto_signals_improved.parquet"
+            signals_path = multi_signals_path
+            model_type = "centralized improved"
+            print(f"Alpha999: Found centralized improved signals")
+        elif (signals_dir / f"{primary_asset}_improved_signals.parquet").exists():
+            # Single asset signals from new system
+            signals_path = signals_dir / f"{primary_asset}_improved_signals.parquet"
+            model_type = "centralized improved (single asset)"
+            print(f"Alpha999: Found centralized improved signals for {primary_asset}")
+        elif (signals_dir / f"{primary_asset}_simple_signals.parquet").exists():
+            # Single asset signals from new system (simple mode)
+            signals_path = signals_dir / f"{primary_asset}_simple_signals.parquet"
+            model_type = "centralized simple (single asset)"
+            print(f"Alpha999: Found centralized simple signals for {primary_asset}")
+        elif (improved_dir / "improved_trading_signals.parquet").exists():
+            # Legacy improved model
             signals_path = improved_dir / "improved_trading_signals.parquet"
             model_type = "improved (validated)"
-            print(f"Alpha999: Using improved validated model")
+            print(f"Alpha999: Found legacy improved signals")
         else:
-            # Fallback to original model
-            signals_path = artifacts_dir / "trading_signals_threshold_40.parquet"
-            model_type = "original"
-            print(f"Alpha999: Using original model (run 'python run_validation.py' for validated version)")
+            signals_path = None
+            model_type = "none"
         
-        # Check if signals file exists
-        if not signals_path.exists():
-            print(f"Warning: ML signals file not found at {signals_path}")
-            print("Please run one of the following:")
-            print("  python run_validation.py  (for validated model)")
-            print("  python src/ml_forecast_prob_dist.py  (for original model)")
-            # Return neutral signals as fallback
-            result = pd.Series(0.0, index=self.df.index)
-            result.name = 'alpha999'
-            return result
+        # Try to load cached signals and check coverage
+        need_new_predictions = False
+        if signals_path and signals_path.exists():
+            try:
+                cached_signals = pd.read_parquet(signals_path)
+                
+                if model_type.startswith("centralized") and "multi_crypto_signals" in str(signals_path):
+                    # Multi-asset format
+                    if primary_asset in cached_signals.columns:
+                        signals_coverage = (cached_signals.index.min(), cached_signals.index.max())
+                    else:
+                        need_new_predictions = True
+                        print(f"Alpha999: No cached signals for {primary_asset}")
+                else:
+                    # Single-asset format
+                    signals_coverage = (cached_signals.index.min(), cached_signals.index.max())
+                
+                # Check if cached signals cover our portfolio date range
+                if signals_coverage:
+                    cache_start, cache_end = signals_coverage
+                    print(f"Alpha999: Cached signals cover {cache_start} to {cache_end}")
+                    
+                    if portfolio_start < cache_start or portfolio_end > cache_end:
+                        need_new_predictions = True
+                        print(f"Alpha999: ⚠️  Portfolio range ({portfolio_start} to {portfolio_end}) extends beyond cached signals")
+                        print(f"Alpha999: 🔮 Will generate new predictions for out-of-sample backtesting")
+                
+            except Exception as e:
+                print(f"Alpha999: Error loading cached signals: {e}")
+                need_new_predictions = True
+        else:
+            need_new_predictions = True
+            print(f"Alpha999: No cached signals found, will generate new predictions")
+        
+        # Generate new predictions if needed
+        if need_new_predictions:
+            return self._generate_realtime_predictions(primary_asset, portfolio_assets, portfolio_start, portfolio_end)
         
         try:
             # Load pre-computed trading signals
             signals_df = pd.read_parquet(signals_path)
-            ml_signals = signals_df['signal']
             
-            print(f"Alpha999: Loaded {len(ml_signals)} ML trading signals ({model_type})")
-            print(f"ML signals date range: {ml_signals.index.min()} to {ml_signals.index.max()}")
+            # Handle different signal formats
+            if model_type.startswith("centralized") and "multi_crypto_signals" in str(signals_path):
+                # Multi-asset format: DataFrame with columns for each asset
+                print(f"Alpha999: Multi-asset signals format detected")
+                print(f"Alpha999: Available assets in signals: {list(signals_df.columns)}")
+                
+                # Use signals for each portfolio asset if available
+                asset_signals = {}
+                for asset in portfolio_assets:
+                    if asset in signals_df.columns:
+                        asset_signals[asset] = signals_df[asset].dropna()
+                        print(f"Alpha999: Found {len(asset_signals[asset])} signals for {asset}")
+                    else:
+                        print(f"⚠️  No signals found for {asset}, will use primary asset signals")
+                
+                # If no exact matches, use first available column as fallback
+                if not asset_signals and len(signals_df.columns) > 0:
+                    primary_signals = signals_df.iloc[:, 0].dropna()
+                    for asset in portfolio_assets:
+                        asset_signals[asset] = primary_signals
+                    print(f"Alpha999: Using {signals_df.columns[0]} signals as fallback for all assets")
+                
+                ml_signals = asset_signals
+                print(f"Alpha999: Loaded multi-asset ML trading signals ({model_type})")
+                
+            else:
+                # Single-asset format: Series with 'signal' column or direct series
+                if 'signal' in signals_df.columns:
+                    ml_signals = signals_df['signal']
+                else:
+                    ml_signals = signals_df.iloc[:, 0] if len(signals_df.columns) > 0 else signals_df
+                
+                print(f"Alpha999: Loaded {len(ml_signals)} ML trading signals ({model_type})")
+                print(f"ML signals date range: {ml_signals.index.min()} to {ml_signals.index.max()}")
+            
             print(f"Portfolio date range: {self.df.index.get_level_values('date').min()} to {self.df.index.get_level_values('date').max()}")
             
             # Get unique dates and assets from current dataframe
             portfolio_dates = self.df.index.get_level_values('date').unique()
-            portfolio_assets = self.df.index.get_level_values('asset').unique()
             
             # Check if this is a single-asset portfolio
             is_single_asset = len(portfolio_assets) == 1
@@ -1210,51 +1308,83 @@ class Alpha101:
             # Create a mapping of signals to dates using string comparison to avoid timezone issues
             result_data = []
             
-            # Convert ML signals to a date->signal mapping using date strings
-            ml_signals_by_date = {}
-            for idx, signal in ml_signals.items():
-                date_str = idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10]
-                ml_signals_by_date[date_str] = signal
-            
-            print(f"Alpha999: Created signal mapping with {len(ml_signals_by_date)} unique dates")
-            
-            for date in portfolio_dates:
-                # Convert portfolio date to string for comparison
-                date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)[:10]
+            # Handle different signal formats
+            if isinstance(ml_signals, dict):
+                # Multi-asset format
+                for date in portfolio_dates:
+                    date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)[:10]
+                    
+                    for asset in portfolio_assets:
+                        signal_value = 0.0
+                        
+                        if asset in ml_signals:
+                            asset_signals = ml_signals[asset]
+                            # Convert asset signals to date mapping
+                            asset_signals_by_date = {}
+                            for idx, signal in asset_signals.items():
+                                signal_date_str = idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10]
+                                asset_signals_by_date[signal_date_str] = signal
+                            
+                            # Look for signal for this date
+                            if date_str in asset_signals_by_date:
+                                signal_value = asset_signals_by_date[date_str]
+                            else:
+                                # Forward fill from previous dates
+                                available_dates = [d for d in asset_signals_by_date.keys() if d <= date_str]
+                                if available_dates:
+                                    non_zero_dates = [d for d in available_dates if asset_signals_by_date[d] != 0]
+                                    if non_zero_dates:
+                                        closest_date = max(non_zero_dates)
+                                        signal_value = asset_signals_by_date[closest_date]
+                                    else:
+                                        closest_date = max(available_dates)
+                                        signal_value = asset_signals_by_date[closest_date]
+                        
+                        # Amplify signal for backtesting
+                        signal_value = signal_value * 1000.0
+                        
+                        if (date, asset) in self.df.index:
+                            result_data.append(((date, asset), signal_value))
+                            
+            else:
+                # Single-asset format (legacy)
+                # Convert ML signals to a date->signal mapping using date strings
+                ml_signals_by_date = {}
+                for idx, signal in ml_signals.items():
+                    date_str = idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10]
+                    ml_signals_by_date[date_str] = signal
                 
-                # Look for exact match first, then closest previous date
-                signal_value = 0.0
-                if date_str in ml_signals_by_date:
-                    signal_value = ml_signals_by_date[date_str]
-                else:
-                    # Find closest previous date, but prefer non-zero signals for forward-filling
-                    available_dates = [d for d in ml_signals_by_date.keys() if d <= date_str]
-                    if available_dates:
-                        # First try to find the latest non-zero signal for better forward-filling
-                        non_zero_dates = [d for d in available_dates if ml_signals_by_date[d] != 0]
-                        if non_zero_dates:
-                            closest_date = max(non_zero_dates)
-                            signal_value = ml_signals_by_date[closest_date]
-                            # print(f"   🔄 Forward-filling non-zero signal from {closest_date}: {signal_value}")
-                        else:
-                            # Fallback to latest date even if zero
-                            closest_date = max(available_dates)
-                            signal_value = ml_signals_by_date[closest_date]
+                print(f"Alpha999: Created signal mapping with {len(ml_signals_by_date)} unique dates")
                 
-                # Always amplify signals for alpha999 detection and proper backtesting
-                # This ensures that -1, 0, 1 signals translate to meaningful position changes
-                # and triggers the custom alpha999 backtest function
-                if model_type == "improved (validated)":
-                    # Improved model automatically chooses optimal direction
+                for date in portfolio_dates:
+                    # Convert portfolio date to string for comparison
+                    date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)[:10]
+                    
+                    # Look for exact match first, then closest previous date
+                    signal_value = 0.0
+                    if date_str in ml_signals_by_date:
+                        signal_value = ml_signals_by_date[date_str]
+                    else:
+                        # Find closest previous date, but prefer non-zero signals for forward-filling
+                        available_dates = [d for d in ml_signals_by_date.keys() if d <= date_str]
+                        if available_dates:
+                            # First try to find the latest non-zero signal for better forward-filling
+                            non_zero_dates = [d for d in available_dates if ml_signals_by_date[d] != 0]
+                            if non_zero_dates:
+                                closest_date = max(non_zero_dates)
+                                signal_value = ml_signals_by_date[closest_date]
+                            else:
+                                # Fallback to latest date even if zero
+                                closest_date = max(available_dates)
+                                signal_value = ml_signals_by_date[closest_date]
+                    
+                    # Amplify signals for alpha999 detection and proper backtesting
                     signal_value = signal_value * 1000.0 
-                else:
-                    # Original model - may need manual sign correction
-                    signal_value = signal_value * 1000.0   # Keep correction for original model
-                
-                # Apply same signal to all assets for this date
-                for asset in portfolio_assets:
-                    if (date, asset) in self.df.index:
-                        result_data.append(((date, asset), signal_value))
+                    
+                    # Apply same signal to all assets for this date
+                    for asset in portfolio_assets:
+                        if (date, asset) in self.df.index:
+                            result_data.append(((date, asset), signal_value))
             
             # Create the result series
             if result_data:
@@ -1290,6 +1420,161 @@ class Alpha101:
             result = pd.Series(0.0, index=self.df.index)
             result.name = 'alpha999'
             return result
+
+    def _generate_realtime_predictions(self, primary_asset, portfolio_assets, portfolio_start, portfolio_end):
+        """
+        Generate real-time ML predictions for backtesting on out-of-sample data.
+        """
+        from pathlib import Path
+        import torch
+        import numpy as np
+        from src.ml_forecasting import MLConfig
+        from src.ml_forecasting.data_loader import load_and_validate_data  
+        from src.ml_forecasting.feature_engineering import FeatureEngineer
+        from src.ml_forecasting.training import ReturnDataset
+        from src.ml_forecasting.signal_generation import generate_trading_signals
+        
+        print(f"Alpha999: 🔮 Generating real-time predictions for {primary_asset}")
+        
+        try:
+            # Load the trained model
+            models_dir = Path("artefacts/models")
+            model_path = models_dir / f"{primary_asset}_improved_model.pt"
+            
+            if not model_path.exists():
+                print(f"Alpha999: ❌ No trained model found at {model_path}")
+                return pd.Series(0.0, index=self.df.index)
+            
+            # Load model data (it's a dictionary with state_dict and metadata)
+            model_data = torch.load(model_path, map_location='cpu', weights_only=False)
+            
+            # Extract model components
+            model_state_dict = model_data['model_state_dict']
+            config_dict = model_data['config'] 
+            feature_names = model_data.get('feature_names', [])
+            input_dim = model_data['input_dim']
+            
+            print(f"Alpha999: ✅ Loaded model data from {model_path}")
+            print(f"Alpha999: Input dim: {input_dim}, Features: {len(feature_names)}")
+            
+            # Reconstruct the model
+            from src.ml_forecasting.models import create_model
+            
+            # Filter config to only include valid MLConfig parameters
+            valid_config_keys = {
+                'symbol', 'start', 'end', 'interval', 'forecast_horizon_hours', 'vol_window_hours',
+                'sma_windows', 'volatility_windows', 'momentum_windows', 'rsi_windows',
+                'enable_regime_features', 'volatility_regime_window', 'feature_stability_window',
+                'max_feature_drift', 'n_quantiles', 'hidden_sizes', 'dropout_rate',
+                'training_mode', 'n_epochs', 'lr', 'weight_decay', 'batch_size',
+                'test_fraction', 'train_ratio', 'val_ratio', 'test_ratio',
+                'min_train_samples', 'validation_months', 'walk_forward_step', 'n_ensemble_models',
+                'early_stopping_patience', 'min_improvement', 'threshold', 'signal_percentiles',
+                'cache_dir', 'device', 'verbose', 'plot_reliability', 'random_seed'
+            }
+            filtered_config = {k: v for k, v in config_dict.items() if k in valid_config_keys}
+            temp_config = MLConfig(**filtered_config)
+            
+            model = create_model(input_dim, temp_config, "simple")  # Improved mode uses simple model
+            model.load_state_dict(model_state_dict)
+            model.eval()
+            
+            print(f"Alpha999: ✅ Reconstructed and loaded model")
+            
+            # Use the model's original config but update dates and interval for prediction
+            config = temp_config  # Use the config from the saved model
+            
+            # Determine interval from the dataframe
+            dates = self.df.index.get_level_values('date').unique()
+            if len(dates) > 1:
+                time_diff = dates[1] - dates[0]
+                if time_diff <= pd.Timedelta(hours=1):
+                    interval = '1h'
+                elif time_diff <= pd.Timedelta(hours=4):
+                    interval = '4h'
+                else:
+                    interval = '1d'
+            else:
+                interval = '4h'  # Default
+            
+            # Update only the necessary fields for prediction
+            config.symbol = primary_asset
+            config.start = portfolio_start.strftime('%Y-%m-%d')
+            config.end = portfolio_end.strftime('%Y-%m-%d')
+            config.interval = interval
+            
+            print(f"Alpha999: Using model config with vol_window_hours={config.vol_window_hours}")
+            
+            # Load and prepare data
+            df = load_and_validate_data(config)
+            engineer = FeatureEngineer(config)
+            df_features = engineer.engineer_features(df)
+            
+            # Use feature names from the saved model (we already loaded them above)
+            if not feature_names:
+                feature_names = list(df_features.columns)
+                print(f"Alpha999: ⚠️  No feature names in model, using all available features")
+            
+            # Select only the features the model was trained on
+            available_features = [f for f in feature_names if f in df_features.columns]
+            if len(available_features) < len(feature_names):
+                print(f"Alpha999: ⚠️  Missing {len(feature_names) - len(available_features)} features, using available ones")
+            
+            X = df_features[available_features]
+            
+            # Create dummy labels (not used for prediction)
+            y_dummy = np.zeros(len(X), dtype=int)
+            
+            # Create dataset
+            dataset = ReturnDataset(X, y_dummy, normalize=True)
+            
+            # Generate signals
+            signals = generate_trading_signals(model, dataset, config, mode="improved")
+            signals.index = X.index[:len(signals)]
+            
+            print(f"Alpha999: ✅ Generated {len(signals)} new predictions")
+            signal_counts = signals.value_counts()
+            print(f"Alpha999: Signal distribution: {dict(signal_counts)}")
+            
+            # Convert to the format expected by the backtest
+            result_data = []
+            for date in self.df.index.get_level_values('date').unique():
+                # Find the closest signal date
+                if date in signals.index:
+                    signal_value = signals.loc[date] * 1000.0  # Amplify for backtest
+                else:
+                    # Forward fill from nearest available signal
+                    available_dates = signals.index[signals.index <= date]
+                    if len(available_dates) > 0:
+                        nearest_date = available_dates.max()
+                        signal_value = signals.loc[nearest_date] * 1000.0
+                    else:
+                        signal_value = 0.0
+                
+                # Apply to all assets in portfolio
+                for asset in portfolio_assets:
+                    if (date, asset) in self.df.index:
+                        result_data.append(((date, asset), signal_value))
+            
+            # Create result series
+            if result_data:
+                index_tuples, signal_values = zip(*result_data)
+                multi_index = pd.MultiIndex.from_tuples(index_tuples, names=['date', 'asset'])
+                result = pd.Series(signal_values, index=multi_index)
+            else:
+                result = pd.Series(0.0, index=self.df.index)
+            
+            result = result.reindex(self.df.index).fillna(0.0)
+            result.name = 'alpha999'
+            
+            print(f"Alpha999: ✅ Real-time predictions complete")
+            return result
+            
+        except Exception as e:
+            print(f"Alpha999: ❌ Error generating real-time predictions: {e}")
+            import traceback
+            traceback.print_exc()
+            return pd.Series(0.0, index=self.df.index)
 
 
 
@@ -1356,6 +1641,120 @@ class Alpha101:
                 except Exception as e:
                     print(f"Could not calculate {alpha_name}: {e}")
         return pd.DataFrame(all_alphas)
+
+    def alpha999_dynamic(self, percentiles=(5, 95)):
+        """
+        Alpha#999 Dynamic: ML-Based Trading Signals with Configurable Percentiles
+        
+        This version loads pre-saved model probabilities and generates signals
+        with custom percentiles without needing to retrain the model.
+        
+        Args:
+            percentiles: Tuple of (bottom, top) percentiles for signal generation
+                        Default (5, 95) means bottom 5% get short signals, top 5% get long signals
+                        More conservative: (1, 99) - fewer but stronger signals
+                        More aggressive: (20, 80) - more frequent signals
+        """
+        from pathlib import Path
+        
+        print(f"Alpha999_Dynamic: Using percentiles {percentiles}")
+        
+        # Define paths for model artifacts (same logic as alpha999)
+        artifacts_dir = Path("artefacts")
+        multi_asset_dir = artifacts_dir / "multi_asset"
+        improved_dir = artifacts_dir / "improved_ml"
+        signals_dir = artifacts_dir / "signals"
+        
+        # Determine which asset to use for signals
+        portfolio_assets = list(self.df.index.get_level_values('asset').unique())
+        primary_asset = portfolio_assets[0] if portfolio_assets else 'BTC-USD'
+        
+        print(f"Alpha999_Dynamic: Primary asset: {primary_asset}")
+        print(f"Alpha999_Dynamic: Portfolio assets: {portfolio_assets}")
+        
+        # Try to find probability files
+        probability_paths = [
+            signals_dir / f"{primary_asset}_improved_probabilities.parquet",
+            improved_dir / f"{primary_asset}_probabilities.parquet",
+            multi_asset_dir / f"multi_crypto_probabilities_improved.parquet"
+        ]
+        
+        probabilities_df = None
+        signals_source = ""
+        
+        for prob_path in probability_paths:
+            if prob_path.exists():
+                try:
+                    probabilities_df = pd.read_parquet(prob_path)
+                    signals_source = str(prob_path)
+                    print(f"Alpha999_Dynamic: Found probabilities at {prob_path}")
+                    break
+                except Exception as e:
+                    print(f"Alpha999_Dynamic: Error loading {prob_path}: {e}")
+                    continue
+        
+        if probabilities_df is None:
+            print(f"❌ No probability files found. Available paths checked:")
+            for path in probability_paths:
+                print(f"   - {path}")
+            print("Run: python multi_crypto_ml_training.py")
+            return pd.Series(0.0, index=self.df.index)
+        
+        print(f"Alpha999_Dynamic: Loaded probabilities from: {signals_source}")
+        print(f"Alpha999_Dynamic: Probability shape: {probabilities_df.shape}")
+        print(f"Alpha999_Dynamic: Date range: {probabilities_df.index.min()} to {probabilities_df.index.max()}")
+        
+        # Regenerate signals with custom percentiles
+        try:
+            from src.ml_forecasting.signal_generation import regenerate_signals_from_probabilities
+            
+            new_signals = regenerate_signals_from_probabilities(
+                probabilities_df, 
+                percentiles, 
+                mode="improved"
+            )
+            
+            print(f"Alpha999_Dynamic: Generated {len(new_signals)} signals with percentiles {percentiles}")
+            
+            # Align signals with portfolio data
+            aligned_signals = {}
+            for asset in portfolio_assets:
+                # Use the same signals for all assets (can be enhanced later for asset-specific signals)
+                asset_mask = self.df.index.get_level_values('asset') == asset
+                asset_dates = self.df.index.get_level_values('date')[asset_mask]
+                
+                # Align signals with asset dates
+                aligned_asset_signals = new_signals.reindex(asset_dates, fill_value=0.0)
+                aligned_signals[asset] = aligned_asset_signals
+                
+                print(f"Alpha999_Dynamic: {asset} - {len(aligned_asset_signals)} signals, "
+                      f"non-zero: {(aligned_asset_signals != 0).sum()}")
+            
+            # Combine signals for all assets
+            final_signals = []
+            for asset in portfolio_assets:
+                asset_mask = self.df.index.get_level_values('asset') == asset
+                asset_signals = aligned_signals[asset].values
+                final_signals.extend(asset_signals)
+            
+            result_series = pd.Series(final_signals, index=self.df.index, name=f'alpha999_dynamic_{percentiles[0]}_{percentiles[1]}')
+            
+            # Final statistics
+            signal_stats = result_series.value_counts().sort_index()
+            total = len(result_series)
+            print(f"Alpha999_Dynamic: Final signal distribution:")
+            for signal_val in [-1, 0, 1]:
+                count = signal_stats.get(signal_val, 0)
+                pct = count / total * 100 if total > 0 else 0
+                print(f"   {signal_val:2d}: {count:5d} ({pct:5.1f}%)")
+            
+            return result_series
+            
+        except Exception as e:
+            print(f"❌ Error regenerating signals: {e}")
+            import traceback
+            traceback.print_exc()
+            return pd.Series(0.0, index=self.df.index)
 
 
 

@@ -11,8 +11,8 @@ except ImportError:
 
 def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=None):
     """
-    Downloads and processes crypto data from Binance with the same interface as get_stock_data.
-    Supports hourly and minute-level data for cryptocurrencies only.
+    Downloads and processes crypto data from Binance with intelligent caching.
+    Automatically detects when requested date ranges extend beyond cached data.
     
     Args:
         tickers: List of crypto symbols (e.g., ['BTC-USD', 'ETH-USD'])
@@ -36,41 +36,56 @@ def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=Non
     start_date_dt = pd.to_datetime(start_date, utc=True)
     end_date_dt = pd.to_datetime(end_date, utc=True)
     
+    print(f"📅 Requested date range: {start_date} to {end_date}")
+    
     final_df = None
     should_download = False
     
-    # Check cache
+    # Check cache with intelligent range validation
     if not os.path.exists(cache_path):
-        print("No cache file found. A new download is required.")
+        print("📂 No cache file found. A new download is required.")
         should_download = True
     else:
-        print(f"Loading cached crypto data from '{cache_path}' to check its date range...")
+        print(f"📂 Loading cached crypto data from '{cache_path}' to validate coverage...")
         try:
             cached_df = pd.read_parquet(cache_path)
-            last_cached_date = cached_df.index.get_level_values('date').max()
-            first_cached_date = cached_df.index.get_level_values('date').min()
             
-            # Check if the list of tickers has changed
-            cached_tickers = set(cached_df.index.get_level_values('asset').unique())
-            if set(tickers) != cached_tickers:
-                print("Ticker list has changed. A new download is required.")
+            if cached_df.empty:
+                print("🔄 Cache file is empty. A new download is required.")
                 should_download = True
-            
-            # For intraday data, consider cache fresh if within 1 hour
-            time_tolerance = 1 if interval in ['1m', '5m', '15m', '1h'] else 2
-            if not should_download and ((end_date_dt - last_cached_date).total_seconds() / 3600 <= time_tolerance):
-                print(f"Cache is considered up to date (last date: {last_cached_date}).")
-                final_df = cached_df
-            elif not should_download:
-                print(f"Cache is outdated (ends on {last_cached_date}, but {end_date_dt} was requested).")
-                print("A new download is required.")
-                should_download = True
+            else:
+                cache_start = cached_df.index.get_level_values('date').min()
+                cache_end = cached_df.index.get_level_values('date').max()
+                
+                print(f"📊 Cached date range: {cache_start.strftime('%Y-%m-%d')} to {cache_end.strftime('%Y-%m-%d')}")
+                
+                # Check if the list of tickers has changed
+                cached_tickers = set(cached_df.index.get_level_values('asset').unique())
+                requested_tickers = set(tickers)
+                if requested_tickers != cached_tickers:
+                    print(f"🔄 Ticker list changed. Cached: {cached_tickers}, Requested: {requested_tickers}")
+                    should_download = True
+                
+                # **INTELLIGENT RANGE COVERAGE CHECK**
+                elif start_date_dt < cache_start or end_date_dt > cache_end:
+                    print(f"🔄 Requested range extends beyond cached data:")
+                    if start_date_dt < cache_start:
+                        print(f"   • Start date {start_date} is before cached start {cache_start.strftime('%Y-%m-%d')}")
+                    if end_date_dt > cache_end:
+                        print(f"   • End date {end_date} is after cached end {cache_end.strftime('%Y-%m-%d')}")
+                    print("   → A new download is required.")
+                    should_download = True
+                
+                else:
+                    print(f"✅ Cache fully covers requested range. Using cached data.")
+                    final_df = cached_df
+                
         except Exception as e:
-            print(f"Cache file corrupted: {e}. Re-downloading...")
+            print(f"🔄 Cache file corrupted: {e}. Re-downloading...")
             should_download = True
     
     if should_download:
-        print(f"Downloading crypto data for {interval} interval...")
+        print(f"🌐 Downloading crypto data for {interval} interval...")
         
         # Initialize Binance client
         binance = ccxt.binance()
@@ -78,7 +93,7 @@ def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=Non
         all_data = []
         
         for ticker in tickers:
-            print(f"  Fetching {ticker}...")
+            print(f"  📈 Fetching {ticker}...")
             
             # Convert ticker format: BTC-USD -> BTC/USDT
             symbol_ccxt = ticker.replace('-USD', '/USDT')
@@ -134,40 +149,52 @@ def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=Non
         # Ensure volume is integer
         final_df['volume'] = final_df['volume'].fillna(0).astype(int)
         
-        print(f"Saving crypto data to '{cache_path}'...")
+        print(f"💾 Saving crypto data to '{cache_path}'...")
         final_df.to_parquet(cache_path)
+        
+        actual_start = final_df.index.get_level_values('date').min()
+        actual_end = final_df.index.get_level_values('date').max()
+        print(f"✅ Downloaded and cached: {actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}")
     
     if final_df is None or final_df.empty:
-        print("No crypto data available to process.")
+        print("❌ No crypto data available to process.")
         return pd.DataFrame()
     
-    print("\nProcessing crypto data for alpha calculations...")
+    print("\n🔧 Processing crypto data for alpha calculations...")
     
-    # Filter by date range
+    # Filter by date range (ensure we only return requested range)
     df_to_use = final_df[(final_df.index.get_level_values('date') >= start_date_dt) & 
                          (final_df.index.get_level_values('date') <= end_date_dt)].copy()
     
+    if df_to_use.empty:
+        print(f"⚠️ No data available for requested range {start_date} to {end_date}")
+        return pd.DataFrame()
+    
     # Add calculated columns (same as stock data)
-    print("Adding calculated columns (vwap, returns)...")
+    print("📊 Adding calculated columns (vwap, returns)...")
     df_to_use['vwap'] = (df_to_use['close'] + df_to_use['open'] + df_to_use['high'] + df_to_use['low']) / 4
     df_to_use['returns'] = df_to_use.groupby(level='asset')['close'].pct_change()
     
     # Add crypto-specific metadata (simplified - no need for yfinance sector lookup)
-    print("Adding crypto metadata...")
+    print("🏷️ Adding crypto metadata...")
     df_to_use['sector'] = 'Cryptocurrency'
     df_to_use['cap'] = 0  # Market cap not easily available via Binance API
     
     df_to_use.dropna(inplace=True)
-    print(f"Crypto data preparation complete. Shape: {df_to_use.shape}")
+    
+    final_start = df_to_use.index.get_level_values('date').min()
+    final_end = df_to_use.index.get_level_values('date').max()
+    print(f"✅ Crypto data preparation complete.")
+    print(f"📅 Final data range: {final_start.strftime('%Y-%m-%d')} to {final_end.strftime('%Y-%m-%d')}")
+    print(f"📊 Shape: {df_to_use.shape}")
     
     return df_to_use
 
 
 def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet'):
     """
-    Downloads and processes stock data with robust, intelligent caching.
-    This version includes a tolerance for the end date to account for API behavior
-    and non-trading days.
+    Downloads and processes stock data with intelligent caching.
+    Automatically detects when requested date ranges extend beyond cached data.
     
     Returns:
         pd.DataFrame: A DataFrame containing the processed stock data with columns for 
@@ -177,43 +204,62 @@ def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet
     start_date_dt = pd.to_datetime(start_date)
     end_date_dt = pd.to_datetime(end_date)
     
+    print(f"📅 Requested date range: {start_date} to {end_date}")
+    
     final_df = None
     should_download = False 
 
     if not os.path.exists(cache_path):
-        print("No cache file found. A new download is required.")
+        print("📂 No cache file found. A new download is required.")
         should_download = True
     else:
-        print(f"Loading cached data from '{cache_path}' to check its date range...")
-        cached_df = pd.read_parquet(cache_path)
-        last_cached_date = cached_df.index.get_level_values('date').max()
-        first_cached_date = cached_df.index.get_level_values('date').min()
-        
-        # Check if the list of tickers has changed.
-        cached_tickers = set(cached_df.index.get_level_values('asset').unique())
-        if set(tickers) != cached_tickers:
-            print("Ticker list has changed. A new download is required.")
-            should_download = True
-
-        # Consider the cache up-to-date if the last entry is within 2 days of the requested end date.
-        # This accounts for yfinance's exclusive end date and weekends.
-        if not should_download and ((end_date_dt - last_cached_date).days <= 2 or (start_date_dt - first_cached_date).days <= 2):
-            print(f"Cache is considered up to date (last date: {last_cached_date.date()}).")
-            final_df = cached_df
-        elif not should_download:
-            print(f"Cache is outdated (ends on {last_cached_date.date()}, but {end_date_dt.date()} was requested).")
-            print("A new download is required.")
+        print(f"📂 Loading cached data from '{cache_path}' to validate coverage...")
+        try:
+            cached_df = pd.read_parquet(cache_path)
+            
+            if cached_df.empty:
+                print("🔄 Cache file is empty. A new download is required.")
+                should_download = True
+            else:
+                cache_start = cached_df.index.get_level_values('date').min()
+                cache_end = cached_df.index.get_level_values('date').max()
+                
+                print(f"📊 Cached date range: {cache_start.strftime('%Y-%m-%d')} to {cache_end.strftime('%Y-%m-%d')}")
+                
+                # Check if the list of tickers has changed
+                cached_tickers = set(cached_df.index.get_level_values('asset').unique())
+                requested_tickers = set(tickers)
+                if requested_tickers != cached_tickers:
+                    print(f"🔄 Ticker list changed. Cached: {cached_tickers}, Requested: {requested_tickers}")
+                    should_download = True
+                
+                # **INTELLIGENT RANGE COVERAGE CHECK**
+                elif start_date_dt < cache_start or end_date_dt > cache_end:
+                    print(f"🔄 Requested range extends beyond cached data:")
+                    if start_date_dt < cache_start:
+                        print(f"   • Start date {start_date} is before cached start {cache_start.strftime('%Y-%m-%d')}")
+                    if end_date_dt > cache_end:
+                        print(f"   • End date {end_date} is after cached end {cache_end.strftime('%Y-%m-%d')}")
+                    print("   → A new download is required.")
+                    should_download = True
+                
+                else:
+                    print(f"✅ Cache fully covers requested range. Using cached data.")
+                    final_df = cached_df
+                    
+        except Exception as e:
+            print(f"🔄 Cache file corrupted: {e}. Re-downloading...")
             should_download = True
 
     if should_download:
-        print("Downloading full history to ensure data integrity...")
+        print("🌐 Downloading stock data...")
         raw_data = yf.download(tickers, start=start_date, end=end_date, auto_adjust=True, progress=True)
         
         if raw_data.empty:
-            print("Failed to download any data.")
+            print("❌ Failed to download any data.")
             # If a download fails, but we have old cached data, it's better to use that than nothing.
             if 'cached_df' in locals() and cached_df is not None:
-                print("Using previously cached data due to download failure.")
+                print("📂 Using previously cached data due to download failure.")
                 final_df = cached_df
             else:
                 return pd.DataFrame()
@@ -231,24 +277,33 @@ def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet
             
             final_df = df_long
             
-            print(f"Saving new, complete data to '{cache_path}'...")
+            print(f"💾 Saving new data to '{cache_path}'...")
             final_df.to_parquet(cache_path)
+            
+            actual_start = final_df.index.get_level_values('date').min()
+            actual_end = final_df.index.get_level_values('date').max()
+            print(f"✅ Downloaded and cached: {actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}")
 
     if final_df is None or final_df.empty:
-        print("No data available to process.")
+        print("❌ No data available to process.")
         return pd.DataFrame()
         
-    print("\nProcessing data for alpha calculations...")
+    print("\n🔧 Processing data for alpha calculations...")
     
+    # Filter by date range (ensure we only return requested range)
     df_to_use = final_df[(final_df.index.get_level_values('date') >= start_date_dt) & 
                          (final_df.index.get_level_values('date') <= end_date_dt)].copy()
 
-    # ... (the rest of the function for adding columns etc. is unchanged)
-    print("Adding calculated columns (vwap, returns)...")
+    if df_to_use.empty:
+        print(f"⚠️ No data available for requested range {start_date} to {end_date}")
+        return pd.DataFrame()
+
+    # Add calculated columns (vwap, returns)
+    print("📊 Adding calculated columns (vwap, returns)...")
     df_to_use['vwap'] = (df_to_use['close'] + df_to_use['open'] + df_to_use['high'] + df_to_use['low']) / 4
     df_to_use['returns'] = df_to_use.groupby(level='asset')['close'].pct_change()
 
-    print("Fetching sector and market cap info...")
+    print("🏢 Fetching sector and market cap info...")
     asset_info = {}
     present_tickers = df_to_use.index.get_level_values('asset').unique()
     for ticker in present_tickers:
@@ -262,6 +317,11 @@ def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet
     df_to_use['cap'] = df_to_use.index.get_level_values('asset').map(lambda x: asset_info.get(x, {}).get('cap'))
             
     df_to_use.dropna(inplace=True)
-    print("\nData preparation complete.")
+    
+    final_start = df_to_use.index.get_level_values('date').min()
+    final_end = df_to_use.index.get_level_values('date').max()
+    print(f"✅ Stock data preparation complete.")
+    print(f"📅 Final data range: {final_start.strftime('%Y-%m-%d')} to {final_end.strftime('%Y-%m-%d')}")
+    print(f"📊 Shape: {df_to_use.shape}")
     
     return df_to_use

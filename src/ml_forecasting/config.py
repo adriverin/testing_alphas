@@ -60,9 +60,9 @@ class MLConfig:
     test_fraction: float = 0.20  # For simple mode
     
     # Improved training parameters  
-    train_ratio: float = 0.6     # For improved mode
-    val_ratio: float = 0.2       # For improved mode
-    test_ratio: float = 0.2      # For improved mode
+    train_ratio: float = 0.8     # For improved mode
+    val_ratio: float = 0.05       # For improved mode
+    test_ratio: float = 0.15      # For improved mode
     min_train_samples: int = 500
     validation_months: int = 6
     walk_forward_step: int = 30
@@ -74,7 +74,7 @@ class MLConfig:
     
     # ==================== SIGNAL GENERATION ====================
     threshold: float = 0.4  # Probability threshold for simple mode
-    signal_percentiles: Tuple[int, int] = (15, 85)  # For improved mode signal generation
+    signal_percentiles: Tuple[int, int] = (5, 95)  # For improved mode signal generation
     
     # ==================== INFRASTRUCTURE ====================
     cache_dir: Path = field(default_factory=lambda: Path("artefacts"))

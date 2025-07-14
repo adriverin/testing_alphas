@@ -31,11 +31,15 @@ def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals
                     full_alpha_series = full_alpha_series.sort_index()
 
                 for start_str, end_str in intervals:
+                    # Convert to timezone-aware datetimes for proper indexing
+                    start_dt = pd.to_datetime(start_str, utc=True)
+                    end_dt = pd.to_datetime(end_str, utc=True)
+                    
                     # Filter the calculated signals and data to the OOS interval
-                    oos_alpha_series = full_alpha_series.loc[pd.IndexSlice[start_str:end_str, :]]
+                    oos_alpha_series = full_alpha_series.loc[pd.IndexSlice[start_dt:end_dt, :]]
                     
                     # Also filter the price data for this specific interval
-                    oos_price_data_interval = full_price_data.loc[pd.IndexSlice[start_str:end_str, :]]
+                    oos_price_data_interval = full_price_data.loc[pd.IndexSlice[start_dt:end_dt, :]]
                     
                     if not oos_price_data_interval.index.is_monotonic_increasing:
                         oos_price_data_interval = oos_price_data_interval.sort_index()
@@ -98,9 +102,13 @@ def run_is_validation_report(alpha_calculator, full_price_data, alpha_list, inte
 
             # Loop through each date interval
             try:
+                # Convert to timezone-aware datetimes for proper indexing
+                start_dt = pd.to_datetime(interval_start_date, utc=True)
+                end_dt = pd.to_datetime(interval_end_date, utc=True)
+                
                 # Filter both price data and the pre-calculated alpha series for the interval
-                interval_price_data = full_price_data.loc[pd.IndexSlice[interval_start_date:interval_end_date, :]]
-                interval_alpha_series = full_alpha_series.loc[pd.IndexSlice[interval_start_date:interval_end_date, :]]
+                interval_price_data = full_price_data.loc[pd.IndexSlice[start_dt:end_dt, :]]
+                interval_alpha_series = full_alpha_series.loc[pd.IndexSlice[start_dt:end_dt, :]]
                 
                 if interval_alpha_series.empty or interval_price_data.empty:
                     print(f"    -> No data in this interval for {alpha_name}. Skipping.")

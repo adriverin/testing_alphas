@@ -202,7 +202,7 @@ def _create_asset_config(asset: str, base_config: MLConfig) -> MLConfig:
         # Infrastructure
         cache_dir=base_config.cache_dir,
         device=base_config.device,
-        verbose=base_config.verbose,
+        verbose=False,  # Disable verbose output in parallel training
         random_seed=base_config.random_seed
     )
     
@@ -210,107 +210,85 @@ def _create_asset_config(asset: str, base_config: MLConfig) -> MLConfig:
 
 
 def _combine_and_save_results(all_signals: Dict[str, pd.Series], 
-                             all_results: Dict[str, Dict], 
-                             base_config: MLConfig) -> Dict:
-    """Combine results from all assets and save."""
-    print(f"\n💾 Combining and saving results...")
+                              all_results: Dict[str, Dict], 
+                              base_config: MLConfig) -> Dict:
+    """Combine results from all assets and save to unified format."""
     
-    # Create combined signals DataFrame
-    valid_signals = {asset: signals for asset, signals in all_signals.items() 
-                    if not signals.empty}
+    print("📊 Combining and saving multi-asset results...")
     
-    if valid_signals:
-        signals_df = pd.DataFrame(valid_signals)
-        
-        # Save combined signals
-        output_dir = base_config.cache_dir / "multi_asset"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        signals_path = output_dir / f"multi_crypto_signals_{base_config.training_mode}.parquet"
-        signals_df.to_parquet(signals_path)
-        
-        print(f"📊 Combined signals saved: {signals_path}")
-        print(f"📊 Signal matrix shape: {signals_df.shape}")
+    # Combine signals into DataFrame
+    signals_df = pd.DataFrame(all_signals)
+    signals_df = signals_df.fillna(0.0)  # Fill missing values with neutral signals
+    
+    # Combine probabilities if available
+    probabilities_combined = {}
+    for asset, results in all_results.items():
+        if 'results' in results and 'probabilities' in results['results']:
+            prob_df = results['results']['probabilities']
+            prob_df.columns = [f"{asset}_{col}" for col in prob_df.columns]  # Add asset prefix
+            probabilities_combined[asset] = prob_df
+    
+    # Create combined probabilities DataFrame
+    if probabilities_combined:
+        combined_prob_df = pd.concat(probabilities_combined.values(), axis=1)
+        combined_prob_df = combined_prob_df.fillna(0.0)
+        print(f"📊 Combined probabilities shape: {combined_prob_df.shape}")
     else:
-        print("⚠️  No valid signals to combine")
-        signals_df = pd.DataFrame()
+        print("⚠️  No probabilities found in results")
+        combined_prob_df = pd.DataFrame()
     
-    # Create summary statistics
-    summary_stats = {}
-    successful_assets = []
-    failed_assets = []
+    # Save to multi-asset directory
+    output_dir = base_config.cache_dir / "multi_asset"
+    output_dir.mkdir(parents=True, exist_ok=True)
     
-    for asset, result in all_results.items():
-        if 'error' in result:
-            failed_assets.append(asset)
-        else:
-            successful_assets.append(asset)
-            
-            summary_stats[asset] = {
-                'training_time': result['training_time'],
-                'signal_distribution': result['signal_stats'],
-                'total_signals': sum(result['signal_stats'].values()) if result['signal_stats'] else 0
-            }
+    # Save combined signals
+    signals_path = output_dir / "multi_crypto_signals_improved.parquet"
+    signals_df.to_parquet(signals_path)
     
-    # Overall summary
-    total_training_time = sum(result['training_time'] for result in all_results.values())
+    # Save combined probabilities
+    if not combined_prob_df.empty:
+        probabilities_path = output_dir / "multi_crypto_probabilities_improved.parquet"
+        combined_prob_df.to_parquet(probabilities_path)
+        print(f"💾 Saved combined probabilities: {probabilities_path}")
+    
+    # Create summary
+    successful_assets = [asset for asset, result in all_results.items() if 'error' not in result]
+    failed_assets = [asset for asset, result in all_results.items() if 'error' in result]
+    total_training_time = sum(result.get('training_time', 0) for result in all_results.values())
     
     summary = {
-        'timestamp': pd.Timestamp.now().isoformat(),
+        'successful_assets': successful_assets,
+        'failed_assets': failed_assets,
         'total_assets': len(all_results),
-        'successful_assets': len(successful_assets),
-        'failed_assets': len(failed_assets),
         'success_rate': len(successful_assets) / len(all_results) if all_results else 0,
         'total_training_time': total_training_time,
-        'average_training_time': total_training_time / len(successful_assets) if successful_assets else 0,
-        'base_config': base_config.to_dict(),
-        'asset_results': summary_stats,
-        'successful_assets': successful_assets,
-        'failed_assets': failed_assets
+        'signals_saved': str(signals_path),
+        'probabilities_saved': str(probabilities_path) if not combined_prob_df.empty else None
     }
     
-    # Save summary
-    if valid_signals:
-        summary_path = output_dir / f"training_summary_{base_config.training_mode}.json"
-        with open(summary_path, 'w') as f:
-            json.dump(summary, f, indent=2, default=str)
-        
-        print(f"📋 Training summary saved: {summary_path}")
+    # Save training summary
+    summary_path = output_dir / "training_summary_improved.json"
+    import json
+    with open(summary_path, 'w') as f:
+        json.dump({
+            **summary,
+            'asset_results': {asset: {k: v for k, v in result.items() if k != 'results'} 
+                            for asset, result in all_results.items()},
+            'config': base_config.to_dict()
+        }, f, indent=2, default=str)
     
-    # Print final statistics
-    print(f"\n🏁 Multi-asset training complete!")
-    print(f"   Total assets: {len(all_results)}")
-    print(f"   Successful: {len(successful_assets)} ({len(successful_assets)/len(all_results)*100:.1f}%)")
-    print(f"   Failed: {len(failed_assets)}")
-    print(f"   Total time: {total_training_time:.1f}s")
-    
-    if successful_assets:
-        print(f"   Average time per asset: {total_training_time/len(successful_assets):.1f}s")
-        
-        # Show signal statistics
-        print(f"\n📊 Combined Signal Statistics:")
-        if not signals_df.empty:
-            total_signals_per_type = {}
-            for signal_type in [-1, 0, 1]:
-                count = (signals_df == signal_type).sum().sum()
-                total_signals_per_type[signal_type] = count
-            
-            total_all_signals = sum(total_signals_per_type.values())
-            if total_all_signals > 0:
-                for signal_type, count in total_signals_per_type.items():
-                    percentage = count / total_all_signals * 100
-                    signal_name = {-1: "Short", 0: "Neutral", 1: "Long"}[signal_type]
-                    print(f"   {signal_name}: {count:,} ({percentage:.1f}%)")
-    
-    if failed_assets:
-        print(f"\n❌ Failed assets: {', '.join(failed_assets)}")
+    print(f"💾 Multi-asset results saved:")
+    print(f"   Signals: {signals_path}")
+    if not combined_prob_df.empty:
+        print(f"   Probabilities: {probabilities_path}")
+    print(f"   Summary: {summary_path}")
+    print(f"✅ Success rate: {len(successful_assets)}/{len(all_results)} assets")
     
     return {
         'signals_df': signals_df,
+        'probabilities_df': combined_prob_df,
         'summary': summary,
-        'individual_results': all_results,
-        'successful_assets': successful_assets,
-        'failed_assets': failed_assets
+        'individual_results': all_results
     }
 
 

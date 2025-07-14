@@ -4,6 +4,7 @@
 import argparse
 import os
 import matplotlib.pyplot as plt
+import numpy as np # Added for percentile testing
 
 # --- Import all the functions from your modules in the 'src' directory ---
 from src.data_loader import get_stock_data, get_crypto_data
@@ -40,24 +41,24 @@ from src.validation import run_factor_analysis, run_oos_validation_report, run_i
 
 # tickers = ['BTC-USD']
 # tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
-tickers = ['DOGE-USD']
-start_date = '2025-01-01'
-end_date = '2025-07-07' 
-# start_date = '2024-03-31'
-# end_date = '2025-06-30' 
+tickers = ['BTC-USD']
+
+start_date = '2025-01-01'  
+end_date = '2025-07-10'    
+
 
 # --- Define the intervals you want to test ---
 number_of_intervals = 1
 
 # --- Define the first and last alpha to test ---
-first_alpha = 998
-last_alpha = 998
+first_alpha = 999  # Use alpha999 for ML-based signals (recommended)
+last_alpha = 999   # Same as first_alpha for single alpha mode
 
 
 
 
 
-def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_intervals=number_of_intervals, first_alpha=first_alpha, last_alpha=last_alpha+1):
+def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_intervals=number_of_intervals, first_alpha=first_alpha, last_alpha=last_alpha):
     """
     Main function to orchestrate the alpha research workflow.
     """
@@ -95,6 +96,17 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
         type=str,
         default='1d',
         help='Data interval for crypto mode: 1m, 5m, 15m, 1h, 4h, 1d (default: 1d)'
+    )
+    parser.add_argument(
+        '--ml-percentiles',
+        type=str,
+        default='5,95',
+        help='ML signal percentiles as "bottom,top" (e.g., "1,99" for conservative, "20,80" for aggressive)'
+    )
+    parser.add_argument(
+        '--test-percentiles',
+        action='store_true',
+        help='Test multiple percentile configurations automatically'
     )
     
     args = parser.parse_args()
@@ -163,20 +175,67 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
             print(f"🛡️ Individual position stop-loss enabled: {args.stop_loss}%")
         
         # This is your basket of "champion" alphas, selected from your research
-        core_alphas = ['alpha998']
+        # if first_alpha == last_alpha:
+        #     # Single alpha mode
+        #     core_alphas = [f'alpha{first_alpha:03d}']
+        # else:
+        #     # Multiple alphas mode - use range
+        #     core_alphas = [f'alpha{i:03d}' for i in range(first_alpha, last_alpha + 1)]
         
-        # For single alpha, bypass combiner
-        if len(core_alphas) == 1:
-            alpha_name = core_alphas[0]
-            print(f"\n--- Using Single Alpha: {alpha_name} ---")
-            if hasattr(alpha_calculator, alpha_name):
-                mega_alpha_signal = getattr(alpha_calculator, alpha_name)().dropna()
-                mega_alpha_signal.name = alpha_name
-            else:
-                print(f"Alpha {alpha_name} not found")
-                return
-        else:
-            mega_alpha_signal = combine_alphas(alpha_calculator, core_alphas)
+        # Parse ML percentiles
+        try:
+            percentile_str = args.ml_percentiles.split(',')
+            ml_percentiles = (int(percentile_str[0]), int(percentile_str[1]))
+            print(f"🎯 Using ML percentiles: {ml_percentiles}")
+        except:
+            ml_percentiles = (5, 95)
+            print(f"⚠️  Invalid percentiles format, using default: {ml_percentiles}")
+        
+        # Test multiple percentiles if requested
+        if args.test_percentiles:
+            print("\n🧪 Testing multiple percentile configurations...")
+            percentile_configs = [
+                (1, 99),   # Very conservative
+                (3, 97),   # Conservative  
+                (5, 95),   # Default
+                (10, 90),  # Moderate
+                (20, 80),  # Aggressive
+            ]
+            
+            for test_percentiles in percentile_configs:
+                print(f"\n📊 Testing percentiles {test_percentiles}...")
+                
+                # Generate signals with current percentiles
+                mega_alpha_signal = alpha_calculator.alpha999_dynamic(percentiles=test_percentiles)
+                
+                if mega_alpha_signal.empty or (mega_alpha_signal == 0).all():
+                    print(f"❌ No signals generated for percentiles {test_percentiles}")
+                    continue
+                
+                # Run backtest
+                strategy_returns_gross, portfolio_info = run_rank_backtest(price_data, mega_alpha_signal, args.stop_loss)
+                daily_turnover = portfolio_info['turnover'].groupby('date').first()
+                daily_cost = daily_turnover * (5 / 10000.0) # 5 bps
+                strategy_returns_net = strategy_returns_gross - daily_cost.reindex(strategy_returns_gross.index).fillna(0)
+                
+                # Quick performance summary
+                total_return = (1 + strategy_returns_net).prod() - 1
+                volatility = strategy_returns_net.std() * np.sqrt(252)
+                sharpe = strategy_returns_net.mean() / strategy_returns_net.std() * np.sqrt(252) if strategy_returns_net.std() > 0 else 0
+                
+                print(f"   📈 Total Return: {total_return:.2%}")
+                print(f"   📊 Volatility: {volatility:.2%}")
+                print(f"   ⚡ Sharpe Ratio: {sharpe:.2f}")
+                
+            print(f"\n🏁 Percentile testing complete. Choose the best configuration and run with --ml-percentiles")
+            return
+        
+        # Use dynamic alpha999 with specified percentiles
+        core_alphas = ['alpha999_dynamic']
+        
+        # Generate signals with dynamic percentiles
+        mega_alpha_signal = alpha_calculator.alpha999_dynamic(percentiles=ml_percentiles)
+        mega_alpha_signal.name = f'alpha999_dynamic_{ml_percentiles[0]}_{ml_percentiles[1]}'
         
         if mega_alpha_signal.empty:
             print("Alpha resulted in no signals. Halting.")

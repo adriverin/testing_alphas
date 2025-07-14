@@ -1,49 +1,146 @@
 {
-  "timestamp": "2025-07-10T16:48:07.817820",
-  "total_assets": 2,
   "successful_assets": [
-    "DOGE-USD",
-    "BTC-USD"
+    "ETH-USD"
   ],
   "failed_assets": [],
+  "total_assets": 1,
   "success_rate": 1.0,
-  "total_training_time": 0.7250046730041504,
-  "average_training_time": 0.3625023365020752,
-  "base_config": {
+  "total_training_time": 21.052612781524658,
+  "signals_saved": "artefacts/multi_asset/multi_crypto_signals_improved.parquet",
+  "probabilities_saved": null,
+  "asset_results": {
+    "ETH-USD": {
+      "training_time": 21.052612781524658,
+      "signal_stats": {
+        "0": 59976,
+        "-1": 613,
+        "1": 613
+      },
+      "config": {
+        "symbol": "ETH-USD",
+        "start": "2018-01-01",
+        "end": "2024-12-31",
+        "interval": "1h",
+        "forecast_horizon_hours": 6,
+        "vol_window_hours": 24,
+        "sma_windows": [
+          5,
+          10,
+          20,
+          30,
+          40,
+          50
+        ],
+        "volatility_windows": [
+          3,
+          5,
+          10,
+          20,
+          30
+        ],
+        "momentum_windows": [
+          3,
+          7,
+          14,
+          21,
+          30,
+          40
+        ],
+        "rsi_windows": [
+          3,
+          7,
+          14,
+          21,
+          30,
+          40,
+          50
+        ],
+        "enable_regime_features": true,
+        "volatility_regime_window": 60,
+        "feature_stability_window": 90,
+        "max_feature_drift": 0.3,
+        "n_quantiles": 7,
+        "hidden_sizes": [
+          64,
+          32,
+          16
+        ],
+        "dropout_rate": 0.5,
+        "training_mode": "improved",
+        "n_epochs": 100,
+        "lr": 5e-05,
+        "weight_decay": 0.01,
+        "batch_size": 256,
+        "test_fraction": 0.2,
+        "train_ratio": 0.8,
+        "val_ratio": 0.05,
+        "test_ratio": 0.15,
+        "min_train_samples": 500,
+        "validation_months": 6,
+        "walk_forward_step": 30,
+        "n_ensemble_models": 3,
+        "early_stopping_patience": 10,
+        "min_improvement": 0.0001,
+        "threshold": 0.4,
+        "signal_percentiles": [
+          5,
+          95
+        ],
+        "cache_dir": "artefacts",
+        "device": "cpu",
+        "verbose": false,
+        "plot_reliability": true,
+        "random_seed": 42,
+        "model_cache_dir": "artefacts/models",
+        "signals_cache_dir": "artefacts/signals",
+        "data_cache_dir": "artefacts/data"
+      }
+    }
+  },
+  "config": {
     "symbol": "BTC-USD",
-    "start": "2023-12-01",
-    "end": "2024-01-15",
+    "start": "2018-01-01",
+    "end": "2024-12-31",
     "interval": "1h",
-    "forecast_horizon_hours": 24,
+    "forecast_horizon_hours": 6,
     "vol_window_hours": 24,
     "sma_windows": [
-      2,
+      5,
+      10,
+      20,
+      30,
+      40,
+      50
+    ],
+    "volatility_windows": [
+      3,
       5,
       10,
       20,
       30
     ],
-    "volatility_windows": [
-      5,
-      10,
-      20
-    ],
     "momentum_windows": [
-      1,
       3,
       7,
-      14
+      14,
+      21,
+      30,
+      40
     ],
     "rsi_windows": [
+      3,
       7,
       14,
-      21
+      21,
+      30,
+      40,
+      50
     ],
     "enable_regime_features": true,
     "volatility_regime_window": 60,
     "feature_stability_window": 90,
     "max_feature_drift": 0.3,
-    "n_quantiles": 5,
+    "n_quantiles": 7,
     "hidden_sizes": [
       64,
       32,
@@ -51,14 +148,14 @@
     ],
     "dropout_rate": 0.5,
     "training_mode": "improved",
-    "n_epochs": 3,
-    "lr": 0.0001,
+    "n_epochs": 100,
+    "lr": 5e-05,
     "weight_decay": 0.01,
     "batch_size": 256,
     "test_fraction": 0.2,
-    "train_ratio": 0.6,
-    "val_ratio": 0.2,
-    "test_ratio": 0.2,
+    "train_ratio": 0.8,
+    "val_ratio": 0.05,
+    "test_ratio": 0.15,
     "min_train_samples": 500,
     "validation_months": 6,
     "walk_forward_step": 30,
@@ -67,8 +164,8 @@
     "min_improvement": 0.0001,
     "threshold": 0.4,
     "signal_percentiles": [
-      5,
-      95
+      2,
+      98
     ],
     "cache_dir": "artefacts",
     "device": "cpu",
@@ -78,25 +175,5 @@
     "model_cache_dir": "artefacts/models",
     "signals_cache_dir": "artefacts/signals",
     "data_cache_dir": "artefacts/data"
-  },
-  "asset_results": {
-    "DOGE-USD": {
-      "training_time": 0.35862183570861816,
-      "signal_distribution": {
-        "0": 704,
-        "-1": 151,
-        "1": 151
-      },
-      "total_signals": 1006
-    },
-    "BTC-USD": {
-      "training_time": 0.3663828372955322,
-      "signal_distribution": {
-        "0": 704,
-        "1": 151,
-        "-1": 151
-      },
-      "total_signals": 1006
-    }
   }
 }

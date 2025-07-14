@@ -4,49 +4,79 @@ import numpy as np
 
 def run_backtest(price_data, alpha_series, quantiles=5):
     """
-    Runs a simple dollar-neutral, long-short backtest on a given alpha series.
+    From alpha values for each asset and date, this backtest forms portfolios based on top and bottom quantiles of the alpha series. 
+    It then computes the strategy returns and turnover.
 
-    This is a very simple backtest that just forms portfolios based on quantiles of the alpha series. 
+    It is dollar-neutral, i.e. the sum of the long and short positions is 0.
+    (this seems wrong, unless the quantiles lead to the same number of long and short positions, which is not clear it does).
 
-        Comment: It does not seem to work well at all.
+        Comment: It does not seem to work well at all. 
+        (To check) Possibly due to only taking top and bottom quantiles and using 1 or -1 weights.
+
+    Args:
+        price_data: Price data DataFrame
+        alpha_series: Alpha signal series
+        quantiles: Number of quantiles to use (default: 5)
+
+    Returns:
+        tuple of DataFrames: (strategy_returns, portfolio_info)
+        - strategy_returns: Daily returns of the strategy
+        - portfolio_info: Daily portfolio weights and turnover
     """
-    # Create a DataFrame with alpha and forward returns
+
+    # Step 1: Create a Combined DataFrame with alpha and forward returns
     df = pd.DataFrame({
         'alpha': alpha_series,
-        'fwd_returns': price_data['returns'].groupby(level='asset').shift(-1)
+        # Shift to compute returns for day t+1 (fwd_returns) with respect to day t alpha; this can lead to issues such as lookahead bias
+        'fwd_returns': price_data['returns'].groupby(level='asset').shift(-1) 
     })
     df.dropna(inplace=True)
     
-    # Form Portfolios based on Quantiles
+    # Step 2: Assign Quantiles Based on Alpha
     if not df.empty:
-        df['quantile'] = df.groupby(level='date')['alpha'] \
-                           .transform(lambda x: pd.qcut(x, quantiles, labels=False, duplicates='drop'))
+        # Per date, we assign quantiles to the asset based on their alpha values
+        # pd.qcut() is used to assign quantiles to the alpha series
+        # labels=False to get quantile order (0, 1, 2, 3, 4) instead of bins for each quantile
+        # duplicates='drop' allows for less quantiles than the number set (5)
+        df['quantile'] = df.groupby(level='date')['alpha'].transform(lambda x: pd.qcut(x, quantiles, labels=False, duplicates='drop'))
     else:
         return pd.Series(dtype=float), pd.DataFrame(columns=['weights', 'quantile', 'turnover'])
         
-    # Calculate Portfolio Weights
+    # Step 3: Calculate Portfolio (Long/Short) Weights
+    # We only use the top and bottom quantiles to form long and short positions
+    # This is a simple way to form portfolios, but it is not the best way to form portfolios
     df['weights'] = 0.0
     df.loc[df['quantile'] == 0, 'weights'] = -1.0
     df.loc[df['quantile'] == (quantiles - 1), 'weights'] = 1.0
     
-    # Normalize weights to be dollar-neutral
+    # Step 4: Normalize Weights to Be Dollar-Neutral (i.e. long/short sum to 0)
+    # THIS IS WRONG! does not lead to a dollar-neutral portfolio
     daily_abs_sum_weights = df.groupby(level='date')['weights'].transform(lambda x: x.abs().sum())
     df.loc[:, 'weights'] = df['weights'] / daily_abs_sum_weights.replace(0, 1)
-    
-    # --- THIS IS THE FIX for the FutureWarning ---
-    # Change the inplace operation to an explicit assignment
+    # Remaining NaNs are set to 0
     df['weights'] = df['weights'].fillna(0)
-    # --- END OF FIX ---
-    
-    # Calculate Strategy Returns
+
+    # Step 5: Compute Daily Strategy Returns
     strategy_returns = df.groupby(level='date').apply(lambda x: (x['weights'] * x['fwd_returns']).sum())
     
-    # Calculate Turnover
+    # Step 6: Calculate Turnover
     df['weights_change'] = (df['weights'] - df.groupby(level='asset')['weights'].shift(1)).fillna(df['weights'])
     daily_turnover = df['weights_change'].abs().groupby(level='date').sum() / 2.0
     daily_turnover.name = 'turnover'
-    
-    # Create the portfolio_info DataFrame and join the turnover Series
+
+    # This appears to me wrong because changing one asset from 1 to -1 should not change the turnover by 100% (right????)
+    # TO CHECK FURTHER - Proposed fix:
+    # Sum of abs position changes
+    # daily_trade = df['weights_change'].abs().groupby(level='date').sum()
+
+    # # Gross exposure per day (total invested capital)
+    # gross_exposure = df['weights'].abs().groupby(level='date').sum()
+
+    # # Turnover: total traded / total exposure
+    # daily_turnover = (daily_trade / gross_exposure).fillna(0)
+    # END PROPOSED FIX
+
+    # Step 7: Package Portfolio Info
     portfolio_info = df[['weights', 'quantile']]
     portfolio_info = portfolio_info.join(daily_turnover, on='date')
     
@@ -375,6 +405,9 @@ def run_rank_backtest(price_data, alpha_series, stop_loss_pct=None):
     
     # 3. Normalize the weights to be dollar-neutral with unit leverage
     # FIXED: Proper normalization that preserves negative weights for short positions
+    # ========================= 
+    # TO CHECK: THIS IS NOT DOLLAR-NEUTRAL FOR THE SIMPLE BACKTEST run_backtest()
+    # ========================= 
     daily_abs_rank_sum = df['centered_rank'].abs().groupby(level='date').transform('sum')
     df['weights'] = df['centered_rank'] / daily_abs_rank_sum.replace(0, 1)
     

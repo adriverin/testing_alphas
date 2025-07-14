@@ -52,9 +52,9 @@ def main():
         # tickers = ['BTC-USD', 'ETH-USD']
         # start_date = '2024-03-31'
         # end_date = '2025-06-30'
-        tickers = ['BTC-USD', 'ETH-USD']
-        start_date = '2024-03-31'
-        end_date = '2025-06-30'
+        tickers = ['PEPE-USD']
+        start_date = '2025-04-01'  
+        end_date = '2025-07-10' 
 
         # Choose data source based on mode
         if args.crypto_mode:

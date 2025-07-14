@@ -125,8 +125,12 @@ def _generate_improved_signals(probabilities: np.ndarray, config: MLConfig) -> n
     extreme_preference = top_scores - bottom_scores
     
     # Use configured percentiles for thresholds
-    top_threshold = np.percentile(extreme_preference, config.signal_percentiles[1])
-    bottom_threshold = np.percentile(extreme_preference, config.signal_percentiles[0])
+    # top_threshold = np.percentile(extreme_preference, config.signal_percentiles[1])
+    # bottom_threshold = np.percentile(extreme_preference, config.signal_percentiles[0])
+    top_threshold = np.percentile(extreme_preference, 99)
+    bottom_threshold = np.percentile(extreme_preference, 1)
+    # print("="*1000)
+    # print(f"Top threshold: {top_threshold}, Bottom threshold: {bottom_threshold}")
     
     # Generate signals in original direction
     signals_original = np.zeros(len(probabilities), dtype=int)
@@ -141,7 +145,7 @@ def _generate_improved_signals(probabilities: np.ndarray, config: MLConfig) -> n
     # For improved mode, we typically use the reversed direction based on
     # analysis showing better correlation with future returns
     # This can be configurable in the future
-    return signals_reversed
+    return signals_original
 
 
 def generate_signals_with_confidence(model: torch.nn.Module, dataset, config: MLConfig,

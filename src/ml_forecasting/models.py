@@ -152,11 +152,11 @@ class EnsembleModel(nn.Module):
     def _create_model(self, input_dim: int, config: MLConfig, model_idx: int):
         """Create individual model for ensemble with slight variations."""
         if config.training_mode == "simple":
-            # Use MLPClassifier for simple mode
-            return MLPClassifier(input_dim, config)
-        else:
-            # Use SimpleModel for improved mode
+            # Use SimpleModel for simple mode
             return SimpleModel(input_dim, config)
+        else:
+            # Use MLPClassifier for improved mode
+            return MLPClassifier(input_dim, config)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass averaging predictions from all models."""

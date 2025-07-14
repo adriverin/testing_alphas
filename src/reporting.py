@@ -147,14 +147,51 @@ def generate_date_intervals(start_date, end_date, n):
 
 
 
+def _detect_data_frequency(returns_series):
+    """
+    Detect the frequency of returns data and return the appropriate annualization factor.
+    
+    Args:
+        returns_series: Time series of returns
+        
+    Returns:
+        tuple: (periods_per_year, frequency_label)
+    """
+    if len(returns_series) < 2:
+        return 252, "daily"  # Default fallback
+    
+    # Calculate median time difference between consecutive observations
+    time_diffs = returns_series.index.to_series().diff().dropna()
+    median_diff = time_diffs.median()
+    
+    # Convert to hours for comparison
+    hours = median_diff.total_seconds() / 3600
+    
+    if hours <= 1.5:  # 1 hour or less
+        return 8760, "hourly"  # 24*365 hours per year
+    elif hours <= 6:  # 4 hours or less
+        return 2190, "4-hourly"  # 6*365 periods per year (4h intervals)
+    elif hours <= 25:  # 1 day or less  
+        return 252, "daily"  # 252 trading days per year
+    elif hours <= 168:  # 1 week or less
+        return 52, "weekly"  # 52 weeks per year
+    else:
+        return 12, "monthly"  # 12 months per year
+
 def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=50):
     """
     Calculates performance metrics and creates a 3-panel plot on a given figure.
     - Top panel: Cumulative Returns (Equity Curve) vs. Benchmark.
     - Middle panel (NEW): Drawdown from Peak over time.
     - Bottom panel: Daily Portfolio Turnover.
+    
+    Enhanced with automatic data frequency detection for proper annualization.
     """
     fig.suptitle(title, fontsize=16)
+    
+    # Detect data frequency for proper annualization
+    periods_per_year, freq_label = _detect_data_frequency(returns_series)
+    print(f"📊 Detected data frequency: {freq_label} ({periods_per_year} periods/year)")
     
     # --- Change subplot layout to a 3x1 grid ---
     ax1 = fig.add_subplot(3, 1, 1)
@@ -187,16 +224,16 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
     
     # --- Metrics Calculations ---
     excess_returns = returns_series_net - benchmark_returns_aligned
-    tracking_error = np.std(excess_returns) * np.sqrt(252)
+    tracking_error = np.std(excess_returns) * np.sqrt(periods_per_year)
     if tracking_error == 0:
         information_ratio = np.nan
     else:
-        annualized_excess_return = np.mean(excess_returns) * 252
+        annualized_excess_return = np.mean(excess_returns) * periods_per_year
         information_ratio = annualized_excess_return / tracking_error
 
     std_dev_net = np.std(returns_series_net); std_dev_net = 1e-6 if std_dev_net == 0 else std_dev_net
-    sharpe_ratio_net = np.mean(returns_series_net) / std_dev_net * np.sqrt(252)
-    annualized_return_net = (cumulative_returns_net.iloc[-1]) ** (252 / len(cumulative_returns_net)) - 1
+    sharpe_ratio_net = np.mean(returns_series_net) / std_dev_net * np.sqrt(periods_per_year)
+    annualized_return_net = (cumulative_returns_net.iloc[-1]) ** (periods_per_year / len(cumulative_returns_net)) - 1
     
     peak_net = cumulative_returns_net.expanding(min_periods=1).max()
     drawdown_series = (cumulative_returns_net / peak_net) - 1
@@ -310,7 +347,7 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
         os.makedirs(report_dir)
         
     # Loop through each alpha in the calculator
-    for i in range(first_alpha, last_alpha):
+    for i in range(first_alpha, last_alpha + 1):  # +1 to make last_alpha inclusive
         alpha_name = f'alpha{i:03d}'
         if not (hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name))):
             continue
@@ -339,8 +376,8 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
                 interval_title = f"Interval: {start_str} to {end_str}"
                 print(f"  Processing {interval_title}")
                 
-                start_dt = pd.to_datetime(start_str)
-                end_dt = pd.to_datetime(end_str)
+                start_dt = pd.to_datetime(start_str, utc=True)
+                end_dt = pd.to_datetime(end_str, utc=True)
                 
                 try:
                     # Filter both price data and the pre-calculated alpha series for the interval
@@ -397,7 +434,7 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
     interval_names = [f"{pd.to_datetime(s).year}-{pd.to_datetime(e).year}" for s, e in date_intervals]
 
     # --- 1. Gather all performance data ---
-    for i in range(first_alpha, last_alpha):
+    for i in range(first_alpha, last_alpha + 1):  # +1 to make last_alpha inclusive
         alpha_name = f'alpha{i:03d}'
         if not (hasattr(alpha_calculator, alpha_name) and callable(getattr(alpha_calculator, alpha_name))):
             continue
@@ -417,8 +454,8 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
             continue
             
         for j, (start_str, end_str) in enumerate(date_intervals):
-            start_dt = pd.to_datetime(start_str)
-            end_dt = pd.to_datetime(end_str)
+            start_dt = pd.to_datetime(start_str, utc=True)
+            end_dt = pd.to_datetime(end_str, utc=True)
             
             try:
                 interval_price_data = full_price_data.loc[pd.IndexSlice[start_dt:end_dt]]
@@ -438,11 +475,14 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
                 benchmark_returns = interval_price_data['returns'].groupby(level='date').mean().reindex(returns_series_net.index).fillna(0)
                 excess_returns = returns_series_net - benchmark_returns
                 
-                std_dev_net = np.std(returns_series_net); std_dev_net = 1e-6 if std_dev_net == 0 else std_dev_net
-                tracking_error = np.std(excess_returns); tracking_error = 1e-6 if tracking_error == 0 else tracking_error * np.sqrt(252)
+                # Detect frequency for proper annualization
+                periods_per_year_summary, _ = _detect_data_frequency(returns_series_net)
                 
-                sharpe = np.mean(returns_series_net) * 252 / (std_dev_net * np.sqrt(252))
-                annualized_excess_return = np.mean(excess_returns) * 252
+                std_dev_net = np.std(returns_series_net); std_dev_net = 1e-6 if std_dev_net == 0 else std_dev_net
+                tracking_error = np.std(excess_returns); tracking_error = 1e-6 if tracking_error == 0 else tracking_error * np.sqrt(periods_per_year_summary)
+                
+                sharpe = np.mean(returns_series_net) * periods_per_year_summary / (std_dev_net * np.sqrt(periods_per_year_summary))
+                annualized_excess_return = np.mean(excess_returns) * periods_per_year_summary
                 ir = annualized_excess_return / tracking_error
                 
                 total_ret = (1 + returns_series_net).prod() - 1
