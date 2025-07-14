@@ -403,8 +403,9 @@ def run_rank_backtest(price_data, alpha_series, stop_loss_pct=None):
     # 2. Center the ranks to create a spread from -0.5 to 0.5
     df['centered_rank'] = df['rank'] - 0.5
     
+
+    
     # 3. Normalize the weights to be dollar-neutral with unit leverage
-    # FIXED: Proper normalization that preserves negative weights for short positions
     # ========================= 
     # TO CHECK: THIS IS NOT DOLLAR-NEUTRAL FOR THE SIMPLE BACKTEST run_backtest()
     # ========================= 

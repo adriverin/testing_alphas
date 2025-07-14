@@ -43,8 +43,8 @@ tickers = [
 # tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
 # tickers = ['BTC-USD']
 
-start_date = '2025-01-01'  
-end_date = '2025-07-10'    
+start_date = '2023-01-01'  
+end_date = '2024-07-10'    
 
 
 # --- Define the intervals you want to test ---
@@ -52,7 +52,7 @@ number_of_intervals = 1
 
 # --- Define the first and last alpha to test ---
 first_alpha = 1  # Use alpha999 for ML-based signals (recommended)
-last_alpha = 5   # Same as first_alpha for single alpha mode
+last_alpha = 1   # Same as first_alpha for single alpha mode
 
 
 
@@ -89,7 +89,7 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
     parser.add_argument(
         '--stock-mode',
         action='store_true',
-        help='Use yfinance stock data instead of Binance crypto data'
+        help='Use yfinance stock data instead of default Binance crypto data'
     )
     parser.add_argument(
         '--interval',
@@ -123,7 +123,7 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
         print("📈 Stock mode - using yfinance data")
         price_data = get_stock_data(tickers, start_date=start_date, end_date=end_date)        
     else:
-        print(f"🔥 Crypto mode enabled - using Binance data with {args.interval} interval")
+        print(f"🔥 Crypto mode (default) - using Binance data with {args.interval} interval")
         # Filter to crypto tickers only
         crypto_tickers = [t for t in tickers if '-USD' in t]
         if not crypto_tickers:

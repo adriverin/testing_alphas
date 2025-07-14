@@ -68,13 +68,21 @@ def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=Non
                 
                 # **INTELLIGENT RANGE COVERAGE CHECK**
                 elif start_date_dt < cache_start or end_date_dt > cache_end:
-                    print(f"🔄 Requested range extends beyond cached data:")
-                    if start_date_dt < cache_start:
-                        print(f"   • Start date {start_date} is before cached start {cache_start.strftime('%Y-%m-%d')}")
-                    if end_date_dt > cache_end:
-                        print(f"   • End date {end_date} is after cached end {cache_end.strftime('%Y-%m-%d')}")
-                    print("   → A new download is required.")
-                    should_download = True
+                    # Check if the extension is significant (more than 7 days)
+                    start_gap = max(0, (cache_start - start_date_dt).days)
+                    end_gap = max(0, (end_date_dt - cache_end).days)
+                    
+                    if start_gap > 7 or end_gap > 7:
+                        print(f"🔄 Requested range extends significantly beyond cached data:")
+                        if start_date_dt < cache_start:
+                            print(f"   • Start date {start_date} is {start_gap} days before cached start {cache_start.strftime('%Y-%m-%d')}")
+                        if end_date_dt > cache_end:
+                            print(f"   • End date {end_date} is {end_gap} days after cached end {cache_end.strftime('%Y-%m-%d')}")
+                        print("   → A new download is required.")
+                        should_download = True
+                    else:
+                        print(f"✅ Cache covers most of requested range (gaps: start={start_gap}d, end={end_gap}d). Using cached data.")
+                        final_df = cached_df
                 
                 else:
                     print(f"✅ Cache fully covers requested range. Using cached data.")
@@ -235,13 +243,21 @@ def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet
                 
                 # **INTELLIGENT RANGE COVERAGE CHECK**
                 elif start_date_dt < cache_start or end_date_dt > cache_end:
-                    print(f"🔄 Requested range extends beyond cached data:")
-                    if start_date_dt < cache_start:
-                        print(f"   • Start date {start_date} is before cached start {cache_start.strftime('%Y-%m-%d')}")
-                    if end_date_dt > cache_end:
-                        print(f"   • End date {end_date} is after cached end {cache_end.strftime('%Y-%m-%d')}")
-                    print("   → A new download is required.")
-                    should_download = True
+                    # Check if the extension is significant (more than 7 days)
+                    start_gap = max(0, (cache_start - start_date_dt).days)
+                    end_gap = max(0, (end_date_dt - cache_end).days)
+                    
+                    if start_gap > 7 or end_gap > 7:
+                        print(f"🔄 Requested range extends significantly beyond cached data:")
+                        if start_date_dt < cache_start:
+                            print(f"   • Start date {start_date} is {start_gap} days before cached start {cache_start.strftime('%Y-%m-%d')}")
+                        if end_date_dt > cache_end:
+                            print(f"   • End date {end_date} is {end_gap} days after cached end {cache_end.strftime('%Y-%m-%d')}")
+                        print("   → A new download is required.")
+                        should_download = True
+                    else:
+                        print(f"✅ Cache covers most of requested range (gaps: start={start_gap}d, end={end_gap}d). Using cached data.")
+                        final_df = cached_df
                 
                 else:
                     print(f"✅ Cache fully covers requested range. Using cached data.")
