@@ -10,12 +10,49 @@ from src.backtests import run_rank_backtest
 
 
 
+def _detect_timezone_format(data_index):
+    """
+    Detect if the data index is timezone-aware or naive.
+    
+    Args:
+        data_index: MultiIndex with 'date' level
+        
+    Returns:
+        bool: True if timezone-aware, False if timezone-naive
+    """
+    date_level = data_index.get_level_values('date')
+    if len(date_level) > 0:
+        return date_level[0].tz is not None
+    return False
+
+
+def _create_compatible_datetime(date_str, is_timezone_aware):
+    """
+    Create datetime that matches the data's timezone format.
+    
+    Args:
+        date_str: Date string to convert
+        is_timezone_aware: Whether to create timezone-aware datetime
+        
+    Returns:
+        pd.Timestamp: Compatible datetime
+    """
+    if is_timezone_aware:
+        return pd.to_datetime(date_str, utc=True)
+    else:
+        return pd.to_datetime(date_str)
+
+
 def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals, report_dir="reports/oos_validation", stop_loss_pct=None):
     """
     Runs and plots OOS validation for a given list of alphas.
     """
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
+    
+    # Detect timezone format of the data once
+    is_timezone_aware = _detect_timezone_format(full_price_data.index)
+    print(f"📅 Data timezone format: {'timezone-aware' if is_timezone_aware else 'timezone-naive'}")
     
     for alpha_name in alpha_list:
         print(f"\nValidating {alpha_name}...")
@@ -31,9 +68,9 @@ def run_oos_validation_report(alpha_calc, full_price_data, alpha_list, intervals
                     full_alpha_series = full_alpha_series.sort_index()
 
                 for start_str, end_str in intervals:
-                    # Convert to timezone-aware datetimes for proper indexing
-                    start_dt = pd.to_datetime(start_str, utc=True)
-                    end_dt = pd.to_datetime(end_str, utc=True)
+                    # Create compatible datetime objects based on data timezone format
+                    start_dt = _create_compatible_datetime(start_str, is_timezone_aware)
+                    end_dt = _create_compatible_datetime(end_str, is_timezone_aware)
                     
                     # Filter the calculated signals and data to the OOS interval
                     oos_alpha_series = full_alpha_series.loc[pd.IndexSlice[start_dt:end_dt, :]]
@@ -78,6 +115,10 @@ def run_is_validation_report(alpha_calculator, full_price_data, alpha_list, inte
     """
     print(f"\n--- Generating In-Sample Analysis Report ---")
     
+    # Detect timezone format of the data once
+    is_timezone_aware = _detect_timezone_format(full_price_data.index)
+    print(f"📅 Data timezone format: {'timezone-aware' if is_timezone_aware else 'timezone-naive'}")
+    
     for alpha_name in alpha_list:
         print(f"\nProcessing {alpha_name}...")
         pdf_path = os.path.join(report_dir, f"{alpha_name}_in_sample_analysis.pdf")
@@ -102,9 +143,9 @@ def run_is_validation_report(alpha_calculator, full_price_data, alpha_list, inte
 
             # Loop through each date interval
             try:
-                # Convert to timezone-aware datetimes for proper indexing
-                start_dt = pd.to_datetime(interval_start_date, utc=True)
-                end_dt = pd.to_datetime(interval_end_date, utc=True)
+                # Create compatible datetime objects based on data timezone format
+                start_dt = _create_compatible_datetime(interval_start_date, is_timezone_aware)
+                end_dt = _create_compatible_datetime(interval_end_date, is_timezone_aware)
                 
                 # Filter both price data and the pre-calculated alpha series for the interval
                 interval_price_data = full_price_data.loc[pd.IndexSlice[start_dt:end_dt, :]]

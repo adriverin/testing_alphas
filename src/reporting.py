@@ -1,37 +1,75 @@
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Must be before pyplot import
 import matplotlib.pyplot as plt
-from matplotlib.backends import backend_pdf
-from src.backtests import run_rank_backtest
-
+import matplotlib.backends.backend_pdf as backend_pdf
 import os
+from .backtests import run_rank_backtest
 
 
+def _detect_timezone_format(data_index):
+    """
+    Detect if the data index is timezone-aware or naive.
+    
+    Args:
+        data_index: MultiIndex with 'date' level
+        
+    Returns:
+        bool: True if timezone-aware, False if timezone-naive
+    """
+    date_level = data_index.get_level_values('date')
+    if len(date_level) > 0:
+        return date_level[0].tz is not None
+    return False
 
+
+def _create_compatible_datetime(date_str, is_timezone_aware):
+    """
+    Create datetime that matches the data's timezone format.
+    
+    Args:
+        date_str: Date string to convert
+        is_timezone_aware: Whether to create timezone-aware datetime
+        
+    Returns:
+        pd.Timestamp: Compatible datetime
+    """
+    if is_timezone_aware:
+        return pd.to_datetime(date_str, utc=True)
+    else:
+        return pd.to_datetime(date_str)
 
 
 def generate_date_intervals(start_date, end_date, n):
     """
-    Generates n intervals of start and end dates between the given start and end date.
+    Generate n equally spaced date intervals between start_date and end_date.
     
-    Parameters:
-    start_date (str): The start date in 'YYYY-MM-DD' format.
-    end_date (str): The end date in 'YYYY-MM-DD' format.
-    n (int): The number of intervals to generate.
-    
+    Args:
+        start_date (str): Start date in YYYY-MM-DD format
+        end_date (str): End date in YYYY-MM-DD format 
+        n (int): Number of intervals to generate
+        
     Returns:
-    list of tuples: A list containing n tuples of (start, end) date intervals.
+        list: List of tuples (start_str, end_str) for each interval
     """
-    start_date_dt = pd.to_datetime(start_date)
-    end_date_dt = pd.to_datetime(end_date)
-    total_days = (end_date_dt - start_date_dt).days
-    interval_length = total_days // n
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    
+    # Calculate interval length
+    total_duration = end_dt - start_dt
+    interval_duration = total_duration / n
     
     intervals = []
     for i in range(n):
-        interval_start = start_date_dt + pd.Timedelta(days=i * interval_length)
-        interval_end = start_date_dt + pd.Timedelta(days=(i + 1) * interval_length) if i < n - 1 else end_date_dt
-        intervals.append((interval_start.strftime('%Y-%m-%d'), interval_end.strftime('%Y-%m-%d')))
+        interval_start = start_dt + i * interval_duration
+        interval_end = start_dt + (i + 1) * interval_duration
+        
+        # Format as strings
+        start_str = interval_start.strftime('%Y-%m-%d')
+        end_str = interval_end.strftime('%Y-%m-%d')
+        
+        intervals.append((start_str, end_str))
     
     return intervals
 
@@ -345,6 +383,10 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
     
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
+    
+    # Detect timezone format of the data once
+    is_timezone_aware = _detect_timezone_format(full_price_data.index)
+    print(f"📅 Data timezone format: {'timezone-aware' if is_timezone_aware else 'timezone-naive'}")
         
     # Loop through each alpha in the calculator
     for i in range(first_alpha, last_alpha + 1):  # +1 to make last_alpha inclusive
@@ -376,8 +418,9 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
                 interval_title = f"Interval: {start_str} to {end_str}"
                 print(f"  Processing {interval_title}")
                 
-                start_dt = pd.to_datetime(start_str, utc=True)
-                end_dt = pd.to_datetime(end_str, utc=True)
+                # Create compatible datetime objects based on data timezone format
+                start_dt = _create_compatible_datetime(start_str, is_timezone_aware)
+                end_dt = _create_compatible_datetime(end_str, is_timezone_aware)
                 
                 try:
                     # Filter both price data and the pre-calculated alpha series for the interval
@@ -429,6 +472,10 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
     
     if not os.path.exists(report_dir):
         os.makedirs(report_dir)
+    
+    # Detect timezone format of the data once
+    is_timezone_aware = _detect_timezone_format(full_price_data.index)
+    print(f"📅 Data timezone format: {'timezone-aware' if is_timezone_aware else 'timezone-naive'}")
         
     all_metrics_data = []
     interval_names = [f"{pd.to_datetime(s).year}-{pd.to_datetime(e).year}" for s, e in date_intervals]
@@ -454,8 +501,9 @@ def generate_summary_html_report(alpha_calculator, full_price_data, date_interva
             continue
             
         for j, (start_str, end_str) in enumerate(date_intervals):
-            start_dt = pd.to_datetime(start_str, utc=True)
-            end_dt = pd.to_datetime(end_str, utc=True)
+            # Create compatible datetime objects based on data timezone format
+            start_dt = _create_compatible_datetime(start_str, is_timezone_aware)
+            end_dt = _create_compatible_datetime(end_str, is_timezone_aware)
             
             try:
                 interval_price_data = full_price_data.loc[pd.IndexSlice[start_dt:end_dt]]
