@@ -26,6 +26,7 @@ class MLConfig:
     start: str = "2020-01-01"
     end: str = "2024-01-01"
     interval: str = "1d"  # Supported: 1m, 5m, 15m, 1h, 4h, 1d
+    price_column: str = "close"  # Price column for ML training: "open", "high", "low", "close", "vwap"
     
     # ==================== FORECASTING PARAMETERS ====================
     forecast_horizon_hours: int = 24  # How far ahead to predict

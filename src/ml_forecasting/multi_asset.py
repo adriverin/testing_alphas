@@ -176,6 +176,7 @@ def _create_asset_config(asset: str, base_config: MLConfig) -> MLConfig:
         start=base_config.start,
         end=base_config.end,
         interval=base_config.interval,
+        price_column=base_config.price_column,  # Copy price column setting
         forecast_horizon_hours=base_config.forecast_horizon_hours,
         vol_window_hours=base_config.vol_window_hours,
         
@@ -186,6 +187,8 @@ def _create_asset_config(asset: str, base_config: MLConfig) -> MLConfig:
         rsi_windows=base_config.rsi_windows,
         enable_regime_features=base_config.enable_regime_features,
         volatility_regime_window=base_config.volatility_regime_window,
+        feature_stability_window=base_config.feature_stability_window,
+        max_feature_drift=base_config.max_feature_drift,
         
         # Model architecture
         n_quantiles=base_config.n_quantiles,
@@ -198,11 +201,24 @@ def _create_asset_config(asset: str, base_config: MLConfig) -> MLConfig:
         lr=base_config.lr,
         weight_decay=base_config.weight_decay,
         batch_size=base_config.batch_size,
+        test_fraction=base_config.test_fraction,
+        train_ratio=base_config.train_ratio,
+        val_ratio=base_config.val_ratio,
+        test_ratio=base_config.test_ratio,
+        min_train_samples=base_config.min_train_samples,
+        validation_months=base_config.validation_months,
+        walk_forward_step=base_config.walk_forward_step,
+        n_ensemble_models=base_config.n_ensemble_models,
+        early_stopping_patience=base_config.early_stopping_patience,
+        min_improvement=base_config.min_improvement,
+        threshold=base_config.threshold,
+        signal_percentiles=base_config.signal_percentiles,
         
         # Infrastructure
         cache_dir=base_config.cache_dir,
         device=base_config.device,
         verbose=False,  # Disable verbose output in parallel training
+        plot_reliability=base_config.plot_reliability,
         random_seed=base_config.random_seed
     )
     

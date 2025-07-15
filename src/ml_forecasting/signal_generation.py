@@ -125,10 +125,10 @@ def _generate_improved_signals(probabilities: np.ndarray, config: MLConfig) -> n
     extreme_preference = top_scores - bottom_scores
     
     # Use configured percentiles for thresholds
-    # top_threshold = np.percentile(extreme_preference, config.signal_percentiles[1])
-    # bottom_threshold = np.percentile(extreme_preference, config.signal_percentiles[0])
-    top_threshold = np.percentile(extreme_preference, 99)
-    bottom_threshold = np.percentile(extreme_preference, 1)
+    top_threshold = np.percentile(extreme_preference, config.signal_percentiles[1])
+    bottom_threshold = np.percentile(extreme_preference, config.signal_percentiles[0])
+    # top_threshold = np.percentile(extreme_preference, 99)
+    # bottom_threshold = np.percentile(extreme_preference, 1)
     # print("="*1000)
     # print(f"Top threshold: {top_threshold}, Bottom threshold: {bottom_threshold}")
     

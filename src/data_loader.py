@@ -9,7 +9,7 @@ except ImportError:
     BINANCE_AVAILABLE = False
 
 
-def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=None):
+def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=None, price_column='close'):
     """
     Downloads and processes crypto data from Binance with intelligent caching.
     Automatically detects when requested date ranges extend beyond cached data.
@@ -20,6 +20,7 @@ def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=Non
         end_date: End date string (YYYY-MM-DD)
         interval: Time interval ('1m', '5m', '15m', '1h', '4h', '1d')
         cache_path: Optional cache file path (auto-generated if None)
+        price_column: Price column to use for returns calculation ('open', 'high', 'low', 'close', 'vwap')
     
     Returns:
         pd.DataFrame: Same format as get_stock_data with MultiIndex (date, asset)
@@ -181,7 +182,18 @@ def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=Non
     # Add calculated columns (same as stock data)
     print("📊 Adding calculated columns (vwap, returns)...")
     df_to_use['vwap'] = (df_to_use['close'] + df_to_use['open'] + df_to_use['high'] + df_to_use['low']) / 4
-    df_to_use['returns'] = df_to_use.groupby(level='asset')['close'].pct_change()
+    
+    # Calculate returns from the specified price column
+    if price_column == 'vwap':
+        df_to_use['returns'] = df_to_use.groupby(level='asset')['vwap'].pct_change()
+    else:
+        # Validate price column exists
+        if price_column not in df_to_use.columns:
+            print(f"⚠️  Warning: Price column '{price_column}' not found, falling back to 'close'")
+            price_column = 'close'
+        df_to_use['returns'] = df_to_use.groupby(level='asset')[price_column].pct_change()
+    
+    print(f"💰 Returns calculated from '{price_column}' price column")
     
     # Add crypto-specific metadata (simplified - no need for yfinance sector lookup)
     print("🏷️ Adding crypto metadata...")
@@ -199,10 +211,17 @@ def get_crypto_data(tickers, start_date, end_date, interval='1h', cache_path=Non
     return df_to_use
 
 
-def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet'):
+def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet', price_column='close'):
     """
     Downloads and processes stock data with intelligent caching.
     Automatically detects when requested date ranges extend beyond cached data.
+    
+    Args:
+        tickers: List of stock symbols (e.g., ['AAPL', 'MSFT'])
+        start_date: Start date string (YYYY-MM-DD)
+        end_date: End date string (YYYY-MM-DD)
+        cache_path: Path to cache file
+        price_column: Price column to use for returns calculation ('open', 'high', 'low', 'close', 'vwap')
     
     Returns:
         pd.DataFrame: A DataFrame containing the processed stock data with columns for 
@@ -317,7 +336,18 @@ def get_stock_data(tickers, start_date, end_date, cache_path='stock_data.parquet
     # Add calculated columns (vwap, returns)
     print("📊 Adding calculated columns (vwap, returns)...")
     df_to_use['vwap'] = (df_to_use['close'] + df_to_use['open'] + df_to_use['high'] + df_to_use['low']) / 4
-    df_to_use['returns'] = df_to_use.groupby(level='asset')['close'].pct_change()
+    
+    # Calculate returns from the specified price column
+    if price_column == 'vwap':
+        df_to_use['returns'] = df_to_use.groupby(level='asset')['vwap'].pct_change()
+    else:
+        # Validate price column exists
+        if price_column not in df_to_use.columns:
+            print(f"⚠️  Warning: Price column '{price_column}' not found, falling back to 'close'")
+            price_column = 'close'
+        df_to_use['returns'] = df_to_use.groupby(level='asset')[price_column].pct_change()
+    
+    print(f"💰 Returns calculated from '{price_column}' price column")
 
     print("🏢 Fetching sector and market cap info...")
     asset_info = {}

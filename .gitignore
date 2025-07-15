@@ -13,8 +13,8 @@ MIGRATION_GUIDE.md
 
 
 # Ignore .parquet files for now
-*.parquet
-*.parquet/*
+# *.parquet
+# *.parquet/*
 
 # Ignore .pt files for now
 *.pt

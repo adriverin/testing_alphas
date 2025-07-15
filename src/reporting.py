@@ -75,116 +75,6 @@ def generate_date_intervals(start_date, end_date, n):
 
 
 
-# def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=5):
-#     """
-#     Calculates performance metrics and creates a 2-panel plot on a given figure.
-#     - Uses a "floating" benchmark aligned with the alpha's active period.
-#     - Adds a clear text annotation specifying the active date range.
-#     - Adds a "Net of Fees" curve to the equity plot.
-#     - Displays daily portfolio turnover in the second panel.
-    
-#     Args:
-#         returns_series (pd.Series): The daily returns of the strategy.
-#         portfolio_info (pd.DataFrame): DataFrame with weights and turnover.
-#         price_data (pd.DataFrame): The full price data for the relevant period, used for the benchmark.
-#         fig (matplotlib.figure.Figure): The matplotlib figure object to plot on.
-#         title (str): The title for the overall figure.
-#         transaction_cost_bps (int): The assumed one-way transaction cost in basis points (1 bps = 0.01%).
-        
-#     Returns:
-#         dict: A dictionary of performance metrics based on net returns.
-#     """
-#     fig.suptitle(title, fontsize=16)
-    
-#     # --- Top Panel: Equity Curve ---
-#     ax1 = fig.add_subplot(2, 1, 1)
-    
-#     # If there are no returns, do not proceed with plotting
-#     if returns_series.empty:
-#         ax1.text(0.5, 0.5, 'No returns to analyze for this period.', ha='center', va='center')
-#         return {}
-        
-#     # --- 1. Define the active date range based on the strategy returns ---
-#     active_start_date = returns_series.index.min()
-#     active_end_date = returns_series.index.max()
-    
-#     # --- 2. Align the Benchmark to this active date range ---
-#     benchmark_returns = price_data['returns'].groupby(level='date').mean()
-#     benchmark_returns_aligned = benchmark_returns.loc[active_start_date:active_end_date]
-#     cumulative_benchmark_returns = (1 + benchmark_returns_aligned).cumprod()
-#     ax1.plot(cumulative_benchmark_returns.index, cumulative_benchmark_returns.values, label='Buy & Hold Benchmark', color='gray', linestyle='--')
-
-#     # 3. Gross Strategy Performance (already aligned)
-#     cumulative_returns_gross = (1 + returns_series).cumprod()
-#     ax1.plot(cumulative_returns_gross.index, cumulative_returns_gross.values, label='Alpha Strategy (Gross)', color='blue', linewidth=2)
-
-#     # 4. Net Strategy Performance (already aligned)
-#     daily_turnover = portfolio_info['turnover'].groupby('date').first()
-#     daily_cost = daily_turnover * (transaction_cost_bps / 10000.0)
-#     returns_series_net = returns_series - daily_cost
-#     cumulative_returns_net = (1 + returns_series_net).cumprod()
-#     ax1.plot(cumulative_returns_net.index, cumulative_returns_net.values, label=f'Alpha Strategy (Net, {transaction_cost_bps} bps)', color='green', linewidth=2)
-    
-#     # --- Calculate Comparative Metrics (IR) ---
-#     excess_returns = returns_series_net - benchmark_returns_aligned
-#     tracking_error = np.std(excess_returns) * np.sqrt(252)
-#     # Avoid division by zero if tracking error is zero
-#     if tracking_error == 0:
-#         information_ratio = np.nan
-#     else:
-#         annualized_excess_return = np.mean(excess_returns) * 252
-#         information_ratio = annualized_excess_return / tracking_error
-
-#     # --- Calculate Standard Performance Metrics (on Net Returns) ---
-#     std_dev_net = np.std(returns_series_net); std_dev_net = 1e-6 if std_dev_net == 0 else std_dev_net
-#     sharpe_ratio_net = np.mean(returns_series_net) / std_dev_net * np.sqrt(252)
-#     cumulative_returns_net = (1 + returns_series_net).cumprod()
-#     annualized_return_net = (cumulative_returns_net.iloc[-1]) ** (252 / len(cumulative_returns_net)) - 1
-#     peak_net = cumulative_returns_net.expanding(min_periods=1).max()
-#     drawdown_net = (cumulative_returns_net / peak_net) - 1
-#     max_drawdown_net = drawdown_net.min()
-    
-#     # --- Add the Date Range Annotation ---
-#     date_range_text = f"Active Period: {active_start_date.strftime('%Y-%m-%d')} to {active_end_date.strftime('%Y-%m-%d')}"
-#     stats_text = (f"Net Sharpe: {sharpe_ratio_net:.2f}\n"
-#                   f"Information Ratio: {information_ratio:.2f}\n"
-#                   f"Net Ann. Return: {annualized_return_net:.2%}\n"
-#                   f"Net Max Drawdown: {max_drawdown_net:.2%}\n")
-#                 #   f"{date_range_text}") 
-#     ax1.text(0.02, 0.98, stats_text, transform=ax1.transAxes, fontsize=9,
-#              verticalalignment='top', bbox=dict(boxstyle='round,pad=0.3', fc='yellow', alpha=0.5))
-    
-#     ax1.set_ylabel('Cumulative Returns')
-#     ax1.legend(loc='upper center')
-#     ax1.grid(True)
-    
-#     # --- Bottom Panel: Daily Turnover ---
-#     # (This part remains the same)
-#     ax2 = fig.add_subplot(2, 1, 2, sharex=ax1)
-#     turnover_series = portfolio_info['turnover'].groupby('date').first().dropna()
-#     ax2.plot(turnover_series.index, turnover_series.values, label='Daily Turnover', color='orange', alpha=0.6, linewidth=1)
-#     rolling_turnover = turnover_series.rolling(window=22).mean()
-#     ax2.plot(rolling_turnover.index, rolling_turnover.values, label='1-Month Avg. Turnover', color='darkred', linestyle='-')
-#     avg_turnover = turnover_series.mean()
-#     ax2.axhline(avg_turnover, color='black', linestyle=':', label=f'Avg Turnover: {avg_turnover:.2%}')
-    
-#     ax2.set_ylabel('Portfolio Turnover')
-#     ax2.set_xlabel('Date')
-#     ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
-#     ax2.legend(loc='upper left')
-#     ax2.grid(True)
-    
-#     fig.tight_layout(rect=[0, 0, 1, 0.96])
-    
-#     return {
-#         'sharpe': sharpe_ratio_net,
-#         'ir': information_ratio, 
-#         'annual_return': annualized_return_net,
-#         'max_drawdown': max_drawdown_net
-#     }
-
-
-
 def _detect_data_frequency(returns_series):
     """
     Detect the frequency of returns data and return the appropriate annualization factor.
@@ -374,7 +264,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
 
 
 
-def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=106, stop_loss_pct=None):
+def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=106, stop_loss_pct=None, backtest_func=run_rank_backtest):
     """
     Performs a chunked backtest for each alpha over specified date intervals.
     Generates one PDF report per alpha, with each page showing performance in one interval.
@@ -432,7 +322,7 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
                         continue
                         
                     # Backtest on the interval data
-                    strategy_returns, portfolio_info = run_rank_backtest(interval_price_data, interval_alpha_series, stop_loss_pct=stop_loss_pct)
+                    strategy_returns, portfolio_info = backtest_func(interval_price_data, interval_alpha_series, stop_loss_pct=stop_loss_pct)
                     
                     if strategy_returns.empty:
                         print(f"    -> Backtest resulted in no returns for this interval. Skipping.")

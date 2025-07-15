@@ -7,8 +7,8 @@ def run_backtest(price_data, alpha_series, quantiles=5):
     From alpha values for each asset and date, this backtest forms portfolios based on top and bottom quantiles of the alpha series. 
     It then computes the strategy returns and turnover.
 
-    It is dollar-neutral, i.e. the sum of the long and short positions is 0.
-    (this seems wrong, unless the quantiles lead to the same number of long and short positions, which is not clear it does).
+    It is SUPPOSED to be dollar-neutral, i.e. the sum of the long and short positions is 0.
+    (this IS NOT THE CASE, unless the quantiles lead to the same number of long and short positions, which is not clear it does).
 
         Comment: It does not seem to work well at all. 
         (To check) Possibly due to only taking top and bottom quantiles and using 1 or -1 weights.
@@ -314,18 +314,20 @@ def run_alpha999_backtest(price_data, alpha_series, stop_loss_pct=None):
     if stop_loss_pct is not None:
         print(f"🛡️ Individual position stop-loss enabled: {stop_loss_pct}%")
     print("--------------------------------")
-    
+
     # Convert ML signals directly to position sizes
     # -1000 -> -1 (short), 0 -> 0 (neutral), 1000 -> 1 (long)
-    ml_signals = alpha_series / 1000.0  # Convert back to -1, 0, 1
+    ml_signals = alpha_series / 1000.0  
     
     # Get the underlying asset returns for holding period calculation
     asset_returns = price_data['returns']
     
-    # FIXED LOGIC: Interpret ML signals as position targets that should be held
+    # Interpret ML signals as position targets that should be held
     # When we get a non-zero signal, hold that position until next non-zero signal
     positions = pd.Series(0.0, index=ml_signals.index)
     
+    # create a DataFrame with (date, asset, signal) the signal to next time only changes when the signal changes
+    # Example: signal = [-1.0, 0.0, 1.0] -> [-1.0, -1.0, 1.0]
     for asset in ml_signals.index.get_level_values('asset').unique():
         asset_signals = ml_signals.xs(asset, level='asset')
         current_position = 0.0
@@ -333,8 +335,9 @@ def run_alpha999_backtest(price_data, alpha_series, stop_loss_pct=None):
         for date, signal in asset_signals.items():
             if signal != 0.0:
                 # Non-zero signal: change position
-                current_position = signal
-            # Always set the current position (whether it changed or not)
+                current_position = -signal
+            # Always set the current position (whether it changed or not) 
+            # i.e. if the signal is 0.0, the position is the same as the previous signal
             positions.loc[(date, asset)] = current_position
     
     # Create temporary DataFrame for stop-loss processing
@@ -373,7 +376,7 @@ def run_alpha999_backtest(price_data, alpha_series, stop_loss_pct=None):
 
 def run_rank_backtest(price_data, alpha_series, stop_loss_pct=None):
     """
-    Runs a dollar-neutral, long-short backtest using rank-based weighting.
+    Runs a long-short backtest using rank-based weighting.
     Enhanced with optional individual position stop-loss functionality.
     
     Args:
@@ -414,6 +417,7 @@ def run_rank_backtest(price_data, alpha_series, stop_loss_pct=None):
     
     df['weights'] = df['weights'].fillna(0)
     
+    
     # Apply stop-loss if enabled - now returns modified strategy returns
     stop_loss_info = {'stop_loss_triggers': 0, 'stopped_positions': []}
     if stop_loss_pct is not None:
@@ -436,5 +440,471 @@ def run_rank_backtest(price_data, alpha_series, stop_loss_pct=None):
     
     if stop_loss_info['stop_loss_triggers'] > 0:
         print(f"🛡️ Stop-loss summary: {stop_loss_info['stop_loss_triggers']} positions stopped out")
+
+    return strategy_returns, portfolio_info
+
+
+# =============================
+# True dollar-neutral backtest
+# =============================
+def run_rank_dollar_neutral_backtest(price_data, alpha_series, stop_loss_pct=None, weight_threshold=None):
+    """
+    Runs a truly dollar-neutral, long-short backtest using rank-based weighting.
+    Ensures that the sum of weights equals zero on each date (dollar-neutral).
+    Enhanced with optional individual position stop-loss functionality and weight filtering.
     
+    Args:
+        price_data: Price data DataFrame
+        alpha_series: Alpha signal series
+        stop_loss_pct: Optional stop-loss percentage (e.g., -5.0 for 5% loss)
+                      None = disabled (default)
+        weight_threshold: Optional minimum absolute weight threshold (e.g., 0.01)
+                         Weights with absolute value below this threshold are set to 0
+                         None = no threshold filtering (default)
+    """
+    # Special handling for alpha999
+    if alpha_series.name == 'alpha999' or (alpha_series.abs() > 110).any():
+        print("Detected alpha999 signals - using special ML backtest")
+        return run_alpha999_backtest(price_data, alpha_series, stop_loss_pct)
+    
+    # Create a DataFrame with alpha and forward returns
+    df = pd.DataFrame({
+        'alpha': alpha_series,
+        'fwd_returns': price_data['returns'].groupby(level='asset').shift(-1)
+    })
+    df.dropna(inplace=True)
+
+    if df.empty:
+        return pd.Series(dtype=float), pd.DataFrame(columns=['weights', 'turnover'])
+
+    # 1. Rank the alpha signals cross-sectionally for each day (from 0.0 to 1.0)
+    df['rank'] = df.groupby(level='date')['alpha'].rank(pct=True)
+    
+    # 2. Center the ranks to create a spread from -0.5 to 0.5
+    df['centered_rank'] = df['rank'] - 0.5
+    
+    # 3. Create truly dollar-neutral weights
+    # Method: Use centered ranks as base weights, then adjust to ensure sum = 0
+    def make_dollar_neutral(group):
+        """Ensure the group of weights sums to exactly zero."""
+        weights = group['centered_rank'].copy()
+        
+        # If all weights are the same (edge case), return zeros
+        if weights.std() == 0:
+            return pd.Series(0.0, index=weights.index)
+        
+        # Adjust weights to sum to zero while preserving relative magnitudes
+        # Method: subtract the mean from each weight
+        weights_adjusted = weights - weights.mean()
+        
+        # Normalize to achieve desired leverage (sum of absolute weights)
+        # Target: sum of absolute weights = 1.0 (unit leverage)
+        total_abs_weight = weights_adjusted.abs().sum()
+        if total_abs_weight > 0:
+            weights_adjusted = weights_adjusted / total_abs_weight
+        
+        return weights_adjusted
+    
+    # Apply dollar-neutral transformation to each date
+    df['weights'] = df.groupby(level='date').apply(make_dollar_neutral).values
+    df['weights'] = df['weights'].fillna(0)
+    
+    # Apply weight threshold filtering if specified
+    if weight_threshold is not None:
+        print(f"🎯 Applying weight threshold filter: |weight| < {weight_threshold} → 0")
+        
+        # Count positions before filtering
+        positions_before = (df['weights'] != 0).sum()
+        
+        # Apply threshold filter: set small weights to zero
+        small_weights_mask = df['weights'].abs() < weight_threshold
+        df.loc[small_weights_mask, 'weights'] = 0.0
+        
+        # Count positions after filtering
+        positions_after = (df['weights'] != 0).sum()
+        positions_filtered = positions_before - positions_after
+        
+        print(f"📊 Positions filtered: {positions_filtered} out of {positions_before} ({positions_filtered/positions_before*100:.1f}%)")
+        
+        # Re-normalize to maintain dollar neutrality after filtering
+        def renormalize_dollar_neutral(group):
+            """Re-normalize weights to maintain dollar neutrality after filtering."""
+            weights = group['weights'].copy()
+            
+            # Skip if all weights are zero or only one non-zero weight
+            non_zero_weights = weights[weights != 0]
+            if len(non_zero_weights) <= 1:
+                return weights
+            
+            # Adjust to sum to zero while preserving relative magnitudes
+            weights_mean = weights.mean()
+            weights_adjusted = weights - weights_mean
+            
+            # Only adjust non-zero weights to maintain the threshold filtering
+            non_zero_mask = weights != 0
+            if non_zero_mask.sum() > 0:
+                # Normalize only the non-zero weights to maintain unit leverage
+                total_abs_weight = weights_adjusted[non_zero_mask].abs().sum()
+                if total_abs_weight > 0:
+                    weights_adjusted[non_zero_mask] = weights_adjusted[non_zero_mask] / total_abs_weight
+            
+            return weights_adjusted
+        
+        # Re-apply dollar-neutral normalization after filtering
+        df['weights'] = df.groupby(level='date').apply(renormalize_dollar_neutral).values
+    
+    # Verify dollar neutrality (for debugging)
+    daily_weight_sums = df.groupby(level='date')['weights'].sum()
+    max_sum_deviation = daily_weight_sums.abs().max()
+    if max_sum_deviation > 1e-10:  # Allow for floating point precision
+        print(f"⚠️ Warning: Maximum daily weight sum deviation from zero: {max_sum_deviation:.2e}")
+    else:
+        print("✅ Dollar neutrality verified: All daily weight sums ≈ 0")
+    
+    # Apply stop-loss if enabled - now returns modified strategy returns
+    stop_loss_info = {'stop_loss_triggers': 0, 'stopped_positions': []}
+    if stop_loss_pct is not None:
+        df, stop_loss_info, strategy_returns = apply_stop_loss(df, price_data, stop_loss_pct)
+    else:
+        # Calculate strategy returns for baseline case
+        strategy_returns = df.groupby(level='date').apply(lambda x: (x['weights'] * x['fwd_returns']).sum())
+
+    # Calculate Turnover
+    df['weights_change'] = (df['weights'] - df.groupby(level='asset')['weights'].shift(1)).fillna(df['weights'])
+    daily_turnover = df['weights_change'].abs().groupby(level='date').sum() / 2.0
+    daily_turnover.name = 'turnover'
+
+    portfolio_info = df[['weights']].copy()
+    portfolio_info = portfolio_info.join(daily_turnover, on='date')
+    
+    # Add stop-loss information to portfolio_info
+    for key, value in stop_loss_info.items():
+        portfolio_info.attrs[key] = value
+    
+    if stop_loss_info['stop_loss_triggers'] > 0:
+        print(f"🛡️ Stop-loss summary: {stop_loss_info['stop_loss_triggers']} positions stopped out")
+    
+    # Verify final dollar neutrality
+    final_daily_sums = portfolio_info['weights'].groupby(level='date').sum()
+    print(f"📊 Final verification - Daily weight sums range: [{final_daily_sums.min():.6f}, {final_daily_sums.max():.6f}]")
+
+    return strategy_returns, portfolio_info
+
+
+def run_alpha_value_dollar_neutral_backtest(price_data, alpha_series, stop_loss_pct=None, weight_threshold=None):
+    """
+    Runs a dollar-neutral backtest using raw alpha values (not ranks) for weighting.
+    This preserves the magnitude differences between alpha signals - stronger alphas get proportionally larger weights.
+    
+    Example: 
+    - Alpha 0.9 vs Alpha 0.1 → weights will reflect this 9:1 ratio
+    - Rank-based would treat them as just "high" vs "low" (1 vs 0)
+    
+    Args:
+        price_data: Price data DataFrame
+        alpha_series: Alpha signal series (raw values, not ranks)
+        stop_loss_pct: Optional stop-loss percentage (e.g., -5.0 for 5% loss)
+                      None = disabled (default)
+        weight_threshold: Optional minimum absolute weight threshold (e.g., 0.01)
+                         Weights with absolute value below this threshold are set to 0
+                         None = no threshold filtering (default)
+    """
+    # Special handling for alpha999
+    if alpha_series.name == 'alpha999' or (alpha_series.abs() > 110).any():
+        print("Detected alpha999 signals - using special ML backtest")
+        return run_alpha999_backtest(price_data, alpha_series, stop_loss_pct)
+    
+    # Create a DataFrame with alpha and forward returns
+    df = pd.DataFrame({
+        'alpha': alpha_series,
+        'fwd_returns': price_data['returns'].groupby(level='asset').shift(-1)
+    })
+    df.dropna(inplace=True)
+
+    if df.empty:
+        return pd.Series(dtype=float), pd.DataFrame(columns=['weights', 'turnover'])
+
+    # Use raw alpha values directly for weighting (preserving magnitude differences)
+    def create_alpha_value_weights(group):
+        """Create weights based on raw alpha values, ensuring dollar neutrality."""
+        alphas = group['alpha'].copy()
+        
+        # Handle edge cases
+        if len(alphas) == 0 or alphas.std() == 0:
+            return pd.Series(0.0, index=alphas.index)
+        
+        # Method 1: Center alphas around their mean to create dollar-neutral base
+        # This preserves relative magnitudes while ensuring sum = 0
+        centered_alphas = alphas - alphas.mean()
+        
+        # Method 2: Scale to desired range [-1, 1] while preserving ratios
+        max_abs_alpha = centered_alphas.abs().max()
+        if max_abs_alpha > 0:
+            # Scale so the largest absolute weight is 1.0
+            scaled_weights = centered_alphas / max_abs_alpha
+        else:
+            scaled_weights = centered_alphas
+        
+        # Method 3: Normalize to unit leverage (sum of absolute weights = 1.0)
+        total_abs_weight = scaled_weights.abs().sum()
+        if total_abs_weight > 0:
+            normalized_weights = scaled_weights / total_abs_weight
+        else:
+            normalized_weights = scaled_weights
+            
+        return normalized_weights
+    
+    # Apply alpha-value-based weighting to each date
+    df['weights'] = df.groupby(level='date').apply(create_alpha_value_weights).values
+    df['weights'] = df['weights'].fillna(0)
+    
+    # Apply weight threshold filtering if specified
+    if weight_threshold is not None:
+        print(f"🎯 Applying weight threshold filter: |weight| < {weight_threshold} → 0")
+        
+        # Count positions before filtering
+        positions_before = (df['weights'] != 0).sum()
+        
+        # Apply threshold filter: set small weights to zero
+        small_weights_mask = df['weights'].abs() < weight_threshold
+        df.loc[small_weights_mask, 'weights'] = 0.0
+        
+        # Count positions after filtering
+        positions_after = (df['weights'] != 0).sum()
+        positions_filtered = positions_before - positions_after
+        
+        print(f"📊 Positions filtered: {positions_filtered} out of {positions_before} ({positions_filtered/positions_before*100:.1f}%)")
+        
+        # Re-normalize to maintain dollar neutrality after filtering
+        def renormalize_alpha_weights(group):
+            """Re-normalize weights to maintain dollar neutrality after filtering."""
+            weights = group['weights'].copy()
+            
+            # Skip if all weights are zero or only one non-zero weight
+            non_zero_weights = weights[weights != 0]
+            if len(non_zero_weights) <= 1:
+                return weights
+            
+            # Adjust to sum to zero while preserving relative magnitudes
+            weights_mean = weights.mean()
+            weights_adjusted = weights - weights_mean
+            
+            # Only adjust non-zero weights to maintain the threshold filtering
+            non_zero_mask = weights != 0
+            if non_zero_mask.sum() > 0:
+                # Normalize only the non-zero weights to maintain unit leverage
+                total_abs_weight = weights_adjusted[non_zero_mask].abs().sum()
+                if total_abs_weight > 0:
+                    weights_adjusted[non_zero_mask] = weights_adjusted[non_zero_mask] / total_abs_weight
+            
+            return weights_adjusted
+        
+        # Re-apply dollar-neutral normalization after filtering
+        df['weights'] = df.groupby(level='date').apply(renormalize_alpha_weights).values
+    
+    # Verify dollar neutrality and weight range
+    daily_weight_sums = df.groupby(level='date')['weights'].sum()
+    max_sum_deviation = daily_weight_sums.abs().max()
+    weight_range = [df['weights'].min(), df['weights'].max()]
+    
+    print(f"✅ Alpha-value weighting complete:")
+    print(f"   📊 Weight range: [{weight_range[0]:.4f}, {weight_range[1]:.4f}]")
+    print(f"   💰 Dollar neutrality: max deviation = {max_sum_deviation:.2e}")
+    
+    if max_sum_deviation > 1e-10:
+        print(f"   ⚠️ Warning: Daily weight sums deviate from zero")
+    
+    # Apply stop-loss if enabled
+    stop_loss_info = {'stop_loss_triggers': 0, 'stopped_positions': []}
+    if stop_loss_pct is not None:
+        df, stop_loss_info, strategy_returns = apply_stop_loss(df, price_data, stop_loss_pct)
+    else:
+        # Calculate strategy returns for baseline case
+        strategy_returns = df.groupby(level='date').apply(lambda x: (x['weights'] * x['fwd_returns']).sum())
+
+    # Calculate Turnover
+    df['weights_change'] = (df['weights'] - df.groupby(level='asset')['weights'].shift(1)).fillna(df['weights'])
+    daily_turnover = df['weights_change'].abs().groupby(level='date').sum() / 2.0
+    daily_turnover.name = 'turnover'
+
+    portfolio_info = df[['weights']].copy()
+    portfolio_info = portfolio_info.join(daily_turnover, on='date')
+    
+    # Add stop-loss information to portfolio_info
+    for key, value in stop_loss_info.items():
+        portfolio_info.attrs[key] = value
+    
+    if stop_loss_info['stop_loss_triggers'] > 0:
+        print(f"🛡️ Stop-loss summary: {stop_loss_info['stop_loss_triggers']} positions stopped out")
+    
+    # Final verification
+    final_daily_sums = portfolio_info['weights'].groupby(level='date').sum()
+    print(f"📊 Final verification - Daily weight sums range: [{final_daily_sums.min():.6f}, {final_daily_sums.max():.6f}]")
+
+    return strategy_returns, portfolio_info
+
+
+
+
+def run_alpha_value_backtest(price_data, alpha_series, stop_loss_pct=None, weight_threshold=None):
+    """
+    Runs a backtest using raw alpha values (not ranks) for weighting WITHOUT dollar neutrality.
+    This preserves the magnitude differences between alpha signals and allows net long/short exposure.
+    
+    Unlike the dollar-neutral version, this function:
+    - Does NOT force the sum of weights to equal zero
+    - Allows net long exposure when alphas are mostly positive
+    - Allows net short exposure when alphas are mostly negative
+    - Preserves the original alpha signal direction and magnitude
+    
+    Example: 
+    - If all alphas are positive → net long portfolio
+    - If alphas are [0.9, 0.1, -0.2] → mostly long with small short position
+    - Alpha 0.9 vs Alpha 0.1 → weights will reflect this 9:1 ratio
+    
+    Args:
+        price_data: Price data DataFrame
+        alpha_series: Alpha signal series (raw values, not ranks)
+        stop_loss_pct: Optional stop-loss percentage (e.g., -5.0 for 5% loss)
+                      None = disabled (default)
+        weight_threshold: Optional minimum absolute weight threshold (e.g., 0.01)
+                         Weights with absolute value below this threshold are set to 0
+                         None = no threshold filtering (default)
+    """
+    # Special handling for alpha999
+    if alpha_series.name == 'alpha999' or (alpha_series.abs() > 500).any():
+        print("Detected alpha999 signals - using special ML backtest")
+        return run_alpha999_backtest(price_data, alpha_series, stop_loss_pct)
+    
+    # Create a DataFrame with alpha and forward returns
+    df = pd.DataFrame({
+        'alpha': alpha_series,
+        'fwd_returns': price_data['returns'].groupby(level='asset').shift(-1)
+    })
+    df.dropna(inplace=True)
+
+    if df.empty:
+        return pd.Series(dtype=float), pd.DataFrame(columns=['weights', 'turnover'])
+
+    # Use raw alpha values directly for weighting (NO dollar neutrality constraint)
+    def create_alpha_weights_no_neutrality(group):
+        """Create weights based on raw alpha values, preserving net exposure."""
+        alphas = group['alpha'].copy()
+        
+        # Handle edge cases
+        if len(alphas) == 0:
+            return pd.Series(0.0, index=alphas.index)
+        
+        # If all alphas are the same, distribute equally
+        if alphas.std() == 0:
+            if alphas.iloc[0] == 0:
+                return pd.Series(0.0, index=alphas.index)
+            else:
+                # All same non-zero value - equal weights with same sign
+                equal_weight = 1.0 / len(alphas)
+                return pd.Series(equal_weight * np.sign(alphas.iloc[0]), index=alphas.index)
+        
+        # Method 1: Scale alphas to desired range [-1, 1] while preserving signs and ratios
+        max_abs_alpha = alphas.abs().max()
+        if max_abs_alpha > 0:
+            # Scale so the largest absolute weight is 1.0
+            scaled_weights = alphas / max_abs_alpha
+        else:
+            scaled_weights = alphas
+        
+        # Method 2: Normalize to unit leverage (sum of absolute weights = 1.0)
+        # This maintains relative magnitudes and signs while standardizing total exposure
+        total_abs_weight = scaled_weights.abs().sum()
+        if total_abs_weight > 0:
+            normalized_weights = scaled_weights / total_abs_weight
+        else:
+            normalized_weights = scaled_weights
+            
+        return normalized_weights
+    
+    # Apply alpha-value-based weighting to each date (NO centering around mean)
+    df['weights'] = df.groupby(level='date').apply(create_alpha_weights_no_neutrality).values
+    df['weights'] = df['weights'].fillna(0)
+    
+    # Apply weight threshold filtering if specified
+    if weight_threshold is not None:
+        print(f"🎯 Applying weight threshold filter: |weight| < {weight_threshold} → 0")
+        
+        # Count positions before filtering
+        positions_before = (df['weights'] != 0).sum()
+        
+        # Apply threshold filter: set small weights to zero
+        small_weights_mask = df['weights'].abs() < weight_threshold
+        df.loc[small_weights_mask, 'weights'] = 0.0
+        
+        # Count positions after filtering
+        positions_after = (df['weights'] != 0).sum()
+        positions_filtered = positions_before - positions_after
+        
+        print(f"📊 Positions filtered: {positions_filtered} out of {positions_before} ({positions_filtered/positions_before*100:.1f}%)")
+        
+        # Re-normalize to maintain unit leverage after filtering (but NOT dollar neutrality)
+        def renormalize_weights_no_neutrality(group):
+            """Re-normalize weights to maintain unit leverage after filtering."""
+            weights = group['weights'].copy()
+            
+            # Skip if all weights are zero
+            non_zero_weights = weights[weights != 0]
+            if len(non_zero_weights) == 0:
+                return weights
+            
+            # Simply renormalize the absolute sum to 1.0 without changing net exposure
+            total_abs_weight = weights.abs().sum()
+            if total_abs_weight > 0:
+                weights = weights / total_abs_weight
+            
+            return weights
+        
+        # Re-apply normalization after filtering (maintaining net exposure)
+        df['weights'] = df.groupby(level='date').apply(renormalize_weights_no_neutrality).values
+    
+    # Calculate and report net exposure statistics
+    daily_weight_sums = df.groupby(level='date')['weights'].sum()
+    daily_gross_exposure = df.groupby(level='date')['weights'].apply(lambda x: x.abs().sum())
+    weight_range = [df['weights'].min(), df['weights'].max()]
+    net_exposure_range = [daily_weight_sums.min(), daily_weight_sums.max()]
+    
+    print(f"✅ Alpha-value weighting (no neutrality) complete:")
+    print(f"   📊 Weight range: [{weight_range[0]:.4f}, {weight_range[1]:.4f}]")
+    print(f"   📈 Net exposure range: [{net_exposure_range[0]:.4f}, {net_exposure_range[1]:.4f}]")
+    print(f"   💼 Average gross exposure: {daily_gross_exposure.mean():.4f}")
+    print(f"   🎯 Average net exposure: {daily_weight_sums.mean():.4f}")
+    
+    # Apply stop-loss if enabled
+    stop_loss_info = {'stop_loss_triggers': 0, 'stopped_positions': []}
+    if stop_loss_pct is not None:
+        df, stop_loss_info, strategy_returns = apply_stop_loss(df, price_data, stop_loss_pct)
+    else:
+        # Calculate strategy returns for baseline case
+        strategy_returns = df.groupby(level='date').apply(lambda x: (x['weights'] * x['fwd_returns']).sum())
+
+    # Calculate Turnover
+    df['weights_change'] = (df['weights'] - df.groupby(level='asset')['weights'].shift(1)).fillna(df['weights'])
+    daily_turnover = df['weights_change'].abs().groupby(level='date').sum() / 2.0
+    daily_turnover.name = 'turnover'
+
+    portfolio_info = df[['weights']].copy()
+    portfolio_info = portfolio_info.join(daily_turnover, on='date')
+    
+    # Add exposure metrics to portfolio info
+    portfolio_info['net_exposure'] = daily_weight_sums.reindex(portfolio_info.index, level='date')
+    portfolio_info['gross_exposure'] = daily_gross_exposure.reindex(portfolio_info.index, level='date')
+    
+    # Add stop-loss information to portfolio_info
+    for key, value in stop_loss_info.items():
+        portfolio_info.attrs[key] = value
+    
+    if stop_loss_info['stop_loss_triggers'] > 0:
+        print(f"🛡️ Stop-loss summary: {stop_loss_info['stop_loss_triggers']} positions stopped out")
+    
+    # Final verification
+    final_net_exposure = portfolio_info['net_exposure'].dropna()
+    if len(final_net_exposure) > 0:
+        print(f"📊 Final net exposure range: [{final_net_exposure.min():.6f}, {final_net_exposure.max():.6f}]")
+
     return strategy_returns, portfolio_info

@@ -24,18 +24,27 @@ class FeatureEngineer:
     def __init__(self, config: MLConfig):
         self.config = config
         self.feature_names: List[str] = []
+        self.price_column: str = config.price_column  # Will be updated when processing data
     
     def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Main feature engineering pipeline.
         
         Args:
-            df: DataFrame with 'close' and 'return' columns
+            df: DataFrame with selected price column and 'return' columns
             
         Returns:
             DataFrame with engineered features
         """
         print("🛠️  Starting feature engineering...")
+        
+        # Get the price column name from the data (should be the configured price column)
+        price_columns = [col for col in df.columns if col not in ['return', 'vol', 'norm_return']]
+        if len(price_columns) != 1:
+            raise ValueError(f"Expected exactly one price column, got: {price_columns}")
+        
+        self.price_column = price_columns[0]
+        print(f"   Using price column: {self.price_column}")
         
         # Start with basic features
         df_features = self._add_basic_features(df.copy())
@@ -52,7 +61,7 @@ class FeatureEngineer:
         
         # Store feature names for later use
         self.feature_names = [col for col in df_features.columns 
-                             if col not in ['return', 'vol', 'norm_return', 'open', 'high', 'low', 'close', 'volume']]
+                             if col not in ['return', 'vol', 'norm_return', 'open', 'high', 'low', 'close', 'volume', self.price_column]]
         
         print(f"✅ Feature engineering complete: {len(self.feature_names)} features")
         return df_features
@@ -63,8 +72,8 @@ class FeatureEngineer:
         
         # Simple Moving Averages
         for window in self.config.sma_windows:
-            sma = df['close'].rolling(window, min_periods=max(1, window//2)).mean()
-            df[f'sma_{window}d'] = ((df['close'] - sma) / sma).fillna(0).clip(-1, 1)
+            sma = df[self.price_column].rolling(window, min_periods=max(1, window//2)).mean()
+            df[f'sma_{window}d'] = ((df[self.price_column] - sma) / sma).fillna(0).clip(-1, 1)
         
         # Volatility ratios
         for window in self.config.volatility_windows:
@@ -74,18 +83,18 @@ class FeatureEngineer:
         
         # Momentum features
         for window in self.config.momentum_windows:
-            momentum = (df['close'] / df['close'].shift(window) - 1).fillna(0).clip(-1, 1)
+            momentum = (df[self.price_column] / df[self.price_column].shift(window) - 1).fillna(0).clip(-1, 1)
             df[f'mom_{window}d'] = momentum
         
         # RSI features
         for window in self.config.rsi_windows:
-            df[f'rsi_{window}d'] = self._calculate_rsi(df['close'], window)
+            df[f'rsi_{window}d'] = self._calculate_rsi(df[self.price_column], window)
         
         # Price position within recent range
         for window in [10, 20, 50]:
-            rolling_min = df['close'].rolling(window, min_periods=max(1, window//2)).min()
-            rolling_max = df['close'].rolling(window, min_periods=max(1, window//2)).max()
-            price_position = (df['close'] - rolling_min) / (rolling_max - rolling_min + 1e-8)
+            rolling_min = df[self.price_column].rolling(window, min_periods=max(1, window//2)).min()
+            rolling_max = df[self.price_column].rolling(window, min_periods=max(1, window//2)).max()
+            price_position = (df[self.price_column] - rolling_min) / (rolling_max - rolling_min + 1e-8)
             df[f'price_pos_{window}d'] = price_position.fillna(0.5).clip(0, 1)
         
         return df
@@ -102,7 +111,7 @@ class FeatureEngineer:
         
         # Trend regime (based on moving average slopes)
         for ma_window in [5, 20]:
-            ma = df['close'].rolling(ma_window).mean()
+            ma = df[self.price_column].rolling(ma_window).mean()
             ma_slope = (ma / ma.shift(ma_window//2) - 1).fillna(0)
             trend_strength = abs(ma_slope)
             trend_threshold = trend_strength.rolling(60, min_periods=30).quantile(0.7)
@@ -110,7 +119,7 @@ class FeatureEngineer:
         
         # Momentum regime (momentum persistence)
         momentum_1d = df['return']
-        momentum_5d = df['close'].pct_change(5)
+        momentum_5d = df[self.price_column].pct_change(5)
         momentum_persistence = (momentum_1d * momentum_5d > 0).rolling(10, min_periods=5).mean()
         df['momentum_regime'] = momentum_persistence.fillna(0.5)
         
@@ -175,7 +184,7 @@ class FeatureEngineer:
         
         # Get feature columns (exclude basic price/return columns)
         feature_cols = [col for col in df.columns 
-                       if col not in ['return', 'vol', 'norm_return', 'open', 'high', 'low', 'close', 'volume']]
+                       if col not in ['return', 'vol', 'norm_return', 'open', 'high', 'low', 'close', 'volume', self.price_column]]
         
         initial_len = len(df)
         
