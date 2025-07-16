@@ -8,16 +8,16 @@
   "failed_assets": [],
   "total_assets": 4,
   "success_rate": 1.0,
-  "total_training_time": 20.239110946655273,
+  "total_training_time": 20.01671266555786,
   "signals_saved": "artefacts/multi_asset/multi_crypto_signals_improved.parquet",
   "probabilities_saved": null,
   "asset_results": {
     "DOGE-USD": {
-      "training_time": 5.905287027359009,
+      "training_time": 5.703796863555908,
       "signal_stats": {
-        "0": 13105,
+        "0": 13688,
         "1": 729,
-        "-1": 729
+        "-1": 146
       },
       "config": {
         "symbol": "DOGE-USD",
@@ -26,7 +26,7 @@
         "interval": "1h",
         "price_column": "typical",
         "forecast_horizon_hours": 1,
-        "vol_window_hours": 12,
+        "vol_window_hours": 24,
         "sma_windows": [
           3,
           5,
@@ -58,7 +58,7 @@
         "volatility_regime_window": 60,
         "feature_stability_window": 90,
         "max_feature_drift": 0.3,
-        "n_quantiles": 5,
+        "n_quantiles": 7,
         "hidden_sizes": [
           32,
           16,
@@ -67,7 +67,7 @@
         "dropout_rate": 0.5,
         "training_mode": "improved",
         "n_epochs": 100,
-        "lr": 0.0001,
+        "lr": 5e-05,
         "weight_decay": 0.01,
         "batch_size": 256,
         "test_fraction": 0.2,
@@ -82,7 +82,7 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
+          1,
           95
         ],
         "cache_dir": "artefacts",
@@ -96,11 +96,11 @@
       }
     },
     "PEPE-USD": {
-      "training_time": 4.753070831298828,
+      "training_time": 4.86052393913269,
       "signal_stats": {
-        "0": 13089,
+        "0": 13671,
         "1": 728,
-        "-1": 728
+        "-1": 146
       },
       "config": {
         "symbol": "PEPE-USD",
@@ -109,7 +109,7 @@
         "interval": "1h",
         "price_column": "typical",
         "forecast_horizon_hours": 1,
-        "vol_window_hours": 12,
+        "vol_window_hours": 24,
         "sma_windows": [
           3,
           5,
@@ -141,7 +141,7 @@
         "volatility_regime_window": 60,
         "feature_stability_window": 90,
         "max_feature_drift": 0.3,
-        "n_quantiles": 5,
+        "n_quantiles": 7,
         "hidden_sizes": [
           32,
           16,
@@ -150,7 +150,7 @@
         "dropout_rate": 0.5,
         "training_mode": "improved",
         "n_epochs": 100,
-        "lr": 0.0001,
+        "lr": 5e-05,
         "weight_decay": 0.01,
         "batch_size": 256,
         "test_fraction": 0.2,
@@ -165,7 +165,7 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
+          1,
           95
         ],
         "cache_dir": "artefacts",
@@ -179,11 +179,11 @@
       }
     },
     "SHIB-USD": {
-      "training_time": 4.81394100189209,
+      "training_time": 4.74645471572876,
       "signal_stats": {
-        "0": 13105,
-        "-1": 729,
-        "1": 729
+        "0": 13688,
+        "1": 729,
+        "-1": 146
       },
       "config": {
         "symbol": "SHIB-USD",
@@ -192,7 +192,7 @@
         "interval": "1h",
         "price_column": "typical",
         "forecast_horizon_hours": 1,
-        "vol_window_hours": 12,
+        "vol_window_hours": 24,
         "sma_windows": [
           3,
           5,
@@ -224,7 +224,7 @@
         "volatility_regime_window": 60,
         "feature_stability_window": 90,
         "max_feature_drift": 0.3,
-        "n_quantiles": 5,
+        "n_quantiles": 7,
         "hidden_sizes": [
           32,
           16,
@@ -233,7 +233,7 @@
         "dropout_rate": 0.5,
         "training_mode": "improved",
         "n_epochs": 100,
-        "lr": 0.0001,
+        "lr": 5e-05,
         "weight_decay": 0.01,
         "batch_size": 256,
         "test_fraction": 0.2,
@@ -248,7 +248,7 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
+          1,
           95
         ],
         "cache_dir": "artefacts",
@@ -262,11 +262,11 @@
       }
     },
     "FLOKI-USD": {
-      "training_time": 4.766812086105347,
+      "training_time": 4.705937147140503,
       "signal_stats": {
-        "0": 13089,
-        "-1": 728,
-        "1": 728
+        "0": 13671,
+        "1": 728,
+        "-1": 146
       },
       "config": {
         "symbol": "FLOKI-USD",
@@ -275,7 +275,7 @@
         "interval": "1h",
         "price_column": "typical",
         "forecast_horizon_hours": 1,
-        "vol_window_hours": 12,
+        "vol_window_hours": 24,
         "sma_windows": [
           3,
           5,
@@ -307,7 +307,7 @@
         "volatility_regime_window": 60,
         "feature_stability_window": 90,
         "max_feature_drift": 0.3,
-        "n_quantiles": 5,
+        "n_quantiles": 7,
         "hidden_sizes": [
           32,
           16,
@@ -316,7 +316,7 @@
         "dropout_rate": 0.5,
         "training_mode": "improved",
         "n_epochs": 100,
-        "lr": 0.0001,
+        "lr": 5e-05,
         "weight_decay": 0.01,
         "batch_size": 256,
         "test_fraction": 0.2,
@@ -331,7 +331,7 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
+          1,
           95
         ],
         "cache_dir": "artefacts",
@@ -352,7 +352,7 @@
     "interval": "1h",
     "price_column": "typical",
     "forecast_horizon_hours": 1,
-    "vol_window_hours": 12,
+    "vol_window_hours": 24,
     "sma_windows": [
       3,
       5,
@@ -384,7 +384,7 @@
     "volatility_regime_window": 60,
     "feature_stability_window": 90,
     "max_feature_drift": 0.3,
-    "n_quantiles": 5,
+    "n_quantiles": 7,
     "hidden_sizes": [
       32,
       16,
@@ -393,7 +393,7 @@
     "dropout_rate": 0.5,
     "training_mode": "improved",
     "n_epochs": 100,
-    "lr": 0.0001,
+    "lr": 5e-05,
     "weight_decay": 0.01,
     "batch_size": 256,
     "test_fraction": 0.2,
@@ -408,7 +408,7 @@
     "min_improvement": 0.0001,
     "threshold": 0.4,
     "signal_percentiles": [
-      5,
+      1,
       95
     ],
     "cache_dir": "artefacts",

@@ -18,7 +18,6 @@ from .config import MLConfig
 class MLPClassifier(nn.Module):
     """
     Multi-layer perceptron for classification with configurable architecture.
-    Enhanced version of the original MLPClassifier with better initialization and regularization.
     """
     
     def __init__(self, input_dim: int, config: MLConfig):
@@ -202,9 +201,9 @@ def create_model(input_dim: int, config: MLConfig, model_type: str = "auto") -> 
     if model_type == "auto":
         # Auto-select based on training mode
         if config.training_mode == "simple":
-            model_type = "mlp"
-        else:
             model_type = "simple"
+        else:
+            model_type = "mlp"
     
     if model_type == "mlp":
         model = MLPClassifier(input_dim, config)

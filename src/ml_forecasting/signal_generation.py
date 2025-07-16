@@ -127,10 +127,7 @@ def _generate_improved_signals(probabilities: np.ndarray, config: MLConfig) -> n
     # Use configured percentiles for thresholds
     top_threshold = np.percentile(extreme_preference, config.signal_percentiles[1])
     bottom_threshold = np.percentile(extreme_preference, config.signal_percentiles[0])
-    # top_threshold = np.percentile(extreme_preference, 99)
-    # bottom_threshold = np.percentile(extreme_preference, 1)
-    # print("="*1000)
-    # print(f"Top threshold: {top_threshold}, Bottom threshold: {bottom_threshold}")
+
     
     # Generate signals in original direction
     signals_original = np.zeros(len(probabilities), dtype=int)
