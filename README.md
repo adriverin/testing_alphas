@@ -8,10 +8,12 @@ Fits exponential moving averages, exponential moving standard deviations, and re
 
 
 Adapt configuration form `config.py` (directly in `multi_crypto_ml_training.py`) and run:
+
 `python multi_crypto_ml_training.py`
 
 
 Then generate plot in `reports/interval_reports` showing (net) earnings vs benchmark, underwater and turnover plots. Adapt date interval, number of plots in the interval, etc. in `main.py`. Run:
+
 `python main.py (--flags) interval`
 
 Available (currently useful) --flags:
@@ -22,7 +24,9 @@ Available (currently useful) --flags:
 
 
 Run a full report as HTML. 
+
 `python run_dashboard.py`
+
 Follow instructions.
 
 
