@@ -101,20 +101,27 @@ def get_strategy_choice():
         else:
             print("Please enter 1-5")
 
+
+from datetime import timedelta, datetime
+
 def get_date_range(recommended_range=None):
     """Get date range from user."""
     if recommended_range:
+        # Calculate yesterday's date and the next day after the end of the recommended range
+        yesterday = datetime.now() - timedelta(days=1)
+        next_day = recommended_range['end'] + timedelta(days=1)
+
         print(f"\n📅 Recommended date range (based on cached signals):")
-        print(f"   Start: {recommended_range['start'].strftime('%Y-%m-%d')}")
-        print(f"   End: {recommended_range['end'].strftime('%Y-%m-%d')}")
+        print(f"   Start: {next_day.strftime('%Y-%m-%d')}")
+        print(f"   End: {yesterday.strftime('%Y-%m-%d')}")
         print("1. Use recommended range")
         print("2. Enter custom range")
         
         choice = input("Select option (1-2): ").strip()
         if choice == "1":
             return (
-                recommended_range['start'].strftime('%Y-%m-%d'),
-                recommended_range['end'].strftime('%Y-%m-%d')
+                next_day.strftime('%Y-%m-%d'),
+                yesterday.strftime('%Y-%m-%d')
             )
     
     print("\n📅 Enter custom date range:")
@@ -122,6 +129,8 @@ def get_date_range(recommended_range=None):
     end_date = input("End date (YYYY-MM-DD): ").strip()
     
     return start_date, end_date
+
+
 
 def main():
     """Main interactive dashboard runner."""
