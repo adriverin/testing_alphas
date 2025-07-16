@@ -2,6 +2,10 @@
 
 This repository contains a **production-ready Python framework** for implementing, backtesting, and analyzing quantitative trading strategies. Originally based on the **"101 Formulaic Alphas"** paper by Zura Kakushadze, it is evolving into a comprehensive alpha research platform with **mid-frequency crypto capabilities**, **ML integration**, and **risk management**.
 
+
+
+
+
 ## Running summary
 **ML training** 
 
@@ -19,10 +23,10 @@ Then generate plot in `reports/interval_reports` showing (net) earnings vs bench
 `python main.py (--flags) interval`
 
 Available (currently useful) --flags:
--`--interval 1d` or `-i 4h` default is daily data for prices (`1d`); Available intervals: `1m, 5m, 15m, 1h, 4h, 1d`.  
--`--stop-loss -5.0` or `-sl -3.5` to set a stop loss in the backtesting. (Note: I sometimes get strange results; this feature must be checked)
--`--log-scale` set a logarithmic scale in the earnings vs benchmark plot.
--`--stock-mode` switch data fetching to `yfinance` to get daily stock data prices; without this flag the default is crypto data on Binance through ccxt.
+- `--interval 1d` or `-i 4h` default is daily data for prices (`1d`); Available intervals: `1m, 5m, 15m, 1h, 4h, 1d`.  
+- `--stop-loss -5.0` or `-sl -3.5` to set a stop loss in the backtesting. (Note: I sometimes get strange results; this feature must be checked)
+- `--log-scale` set a logarithmic scale in the earnings vs benchmark plot.
+- `--stock-mode` switch data fetching to `yfinance` to get daily stock data prices; without this flag the default is crypto data on Binance through ccxt.
 
 
 **HTML dashboard report**
@@ -32,6 +36,16 @@ Run a full report as HTML.
 `python run_dashboard.py`
 
 Follow instructions.
+
+
+
+
+
+
+
+
+
+
 
 
 
