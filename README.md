@@ -3,7 +3,7 @@
 This repository contains a **production-ready Python framework** for implementing, backtesting, and analyzing quantitative trading strategies. Originally based on the **"101 Formulaic Alphas"** paper by Zura Kakushadze, it is evolving into a comprehensive alpha research platform with **mid-frequency crypto capabilities**, **ML integration**, and **risk management**.
 
 ## Running summary
-** ML training ** 
+**ML training** 
 Fits exponential moving averages, exponential moving standard deviations, and relative strength index (RSI) (based on 18.2 Strategy: Artificial neural network (ANN) of https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3247865).
 
 
@@ -29,24 +29,24 @@ Follow instructions.
 
 ## New Major Features 
 
-### ** Mid-Frequency Crypto Backtesting**
+### **Mid-Frequency Crypto Backtesting**
 - **Minute-level precision**: Test strategies at 1m, 5m, 15m intervals
 - **Binance integration**: Professional exchange data via `ccxt`
 - **Massive scale**: Handle 250K+ data points seamlessly
 - **Same interface**: All existing alphas work unchanged
 
-### ** Advanced Risk Management**
+### **Advanced Risk Management**
 - **Individual position stop-loss**: Precise risk control per trade
 - **Real-time P&L tracking**: Monitor position performance
 - **Multiple stop-loss strategies**: Portfolio vs individual position levels
 
-### ** Comprehensive Trade Analysis**
+### **Comprehensive Trade Analysis**
 - **Individual trade extraction**: Export every trade with full details
 - **Excel/CSV exports**: Spreadsheet analysis
 - **Trade statistics**: Win rate, profit factor, holding periods
 - **P&L validation**: Verified against portfolio returns
 
-### ** Machine Learning Integration**
+### **Machine Learning Integration**
 - **ML-powered alphas**: Alpha998/999 with neural network signals
 - **Multi-crypto models**: Asset-specific ML strategies
 - **Cross-asset validation**: Multi-crypto portfolios
