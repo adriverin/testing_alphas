@@ -11,6 +11,9 @@ issues.md
 CRYPTO_BACKTESTING_GUIDE.md
 MIGRATION_GUIDE.md
 
+DASHBOARD_FIX_SUMMARY.md
+DASHBOARD_README.md
+NAN_FIX_SUMMARY.md
 
 # Ignore .parquet files for now
 # *.parquet

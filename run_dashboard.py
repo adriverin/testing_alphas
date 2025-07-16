@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+
+"""
+Trading Strategy Dashboard Runner
+=================================
+
+Interactive script to generate and view trading strategy dashboards.
+Now optimized to work with cached signals, avoiding probability file requirements.
+"""
+
+import subprocess
+import sys
+import os
+from pathlib import Path
+import pandas as pd
+
+def check_cached_signals():
+    """Check what cached signal files are available and their date ranges."""
+    print("📁 Checking available cached signal files...\n")
+    
+    artifacts_dir = Path("artefacts")
+    signal_files = [
+        artifacts_dir / "multi_asset" / "multi_crypto_signals_improved.parquet",
+        artifacts_dir / "improved_ml" / "improved_trading_signals.parquet",
+    ]
+    
+    # Add individual asset signals
+    signals_dir = artifacts_dir / "signals"
+    if signals_dir.exists():
+        signal_files.extend(list(signals_dir.glob("*_improved_signals.parquet")))
+    
+    available_ranges = {}
+    
+    for signal_file in signal_files:
+        if signal_file.exists():
+            try:
+                df = pd.read_parquet(signal_file)
+                start_date = df.index.min()
+                end_date = df.index.max()
+                
+                # Format the display
+                file_display = signal_file.name
+                if "multi_crypto_signals" in file_display:
+                    assets = list(df.columns) if hasattr(df, 'columns') else ['Unknown']
+                    asset_info = f" (Assets: {', '.join(assets)})"
+                else:
+                    asset_info = ""
+                
+                available_ranges[file_display] = {
+                    'start': start_date,
+                    'end': end_date,
+                    'assets': asset_info,
+                    'shape': df.shape
+                }
+                
+                print(f"✅ {file_display}{asset_info}")
+                print(f"   📅 Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+                print(f"   📊 Shape: {df.shape}")
+                print()
+                
+            except Exception as e:
+                print(f"❌ Error reading {signal_file.name}: {e}")
+    
+    if not available_ranges:
+        print("❌ No cached signal files found!")
+        print("💡 Run: python multi_crypto_ml_training.py")
+        return None
+    
+    # Find the best date range for Alpha999
+    multi_asset_file = "multi_crypto_signals_improved.parquet"
+    if multi_asset_file in available_ranges:
+        best_range = available_ranges[multi_asset_file]
+        print(f"🎯 Recommended for Alpha999: {best_range['start'].strftime('%Y-%m-%d')} to {best_range['end'].strftime('%Y-%m-%d')}")
+        return best_range
+    
+    return list(available_ranges.values())[0] if available_ranges else None
+
+def get_strategy_choice():
+    """Get strategy choice from user."""
+    print("📊 Available Trading Strategies:")
+    print("1. Alpha999 (ML-based) - Uses cached signals")
+    print("2. Alpha003 (Traditional factor)")
+    print("3. Alpha041 (Traditional factor)")
+    print("4. Alpha042 (Traditional factor)")
+    print("5. Custom alpha (enter name)")
+    
+    while True:
+        choice = input("\nSelect strategy (1-5): ").strip()
+        
+        if choice == "1":
+            return "alpha999"
+        elif choice == "2":
+            return "alpha003"
+        elif choice == "3":
+            return "alpha041"
+        elif choice == "4":
+            return "alpha042"
+        elif choice == "5":
+            custom = input("Enter alpha name (e.g., alpha999_dynamic): ").strip()
+            return custom if custom else "alpha999"
+        else:
+            print("Please enter 1-5")
+
+def get_date_range(recommended_range=None):
+    """Get date range from user."""
+    if recommended_range:
+        print(f"\n📅 Recommended date range (based on cached signals):")
+        print(f"   Start: {recommended_range['start'].strftime('%Y-%m-%d')}")
+        print(f"   End: {recommended_range['end'].strftime('%Y-%m-%d')}")
+        print("1. Use recommended range")
+        print("2. Enter custom range")
+        
+        choice = input("Select option (1-2): ").strip()
+        if choice == "1":
+            return (
+                recommended_range['start'].strftime('%Y-%m-%d'),
+                recommended_range['end'].strftime('%Y-%m-%d')
+            )
+    
+    print("\n📅 Enter custom date range:")
+    start_date = input("Start date (YYYY-MM-DD): ").strip()
+    end_date = input("End date (YYYY-MM-DD): ").strip()
+    
+    return start_date, end_date
+
+def main():
+    """Main interactive dashboard runner."""
+    print("=" * 60)
+    print("🚀 Trading Strategy Dashboard Runner")
+    print("=" * 60)
+    
+    # Check available cached signals
+    recommended_range = check_cached_signals()
+    
+    # Get strategy choice
+    strategy = get_strategy_choice()
+    
+    # Get date range
+    start_date, end_date = get_date_range(recommended_range)
+    
+    # Additional options
+    print(f"\n🎯 Configuration:")
+    print(f"   Strategy: {strategy}")
+    print(f"   Date range: {start_date} to {end_date}")
+    
+    # Generate dashboard data
+    print("\n📊 Generating dashboard data...")
+    
+    cmd = [
+        sys.executable, "generate_dashboard_data.py",
+        "--alpha", strategy,
+        "--start-date", start_date,
+        "--end-date", end_date,
+        "--output", "dashboard_data.json"
+    ]
+    
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        print("✅ Dashboard data generated successfully!")
+        
+        # Show key metrics from output
+        output_lines = result.stdout.split('\n')
+        for line in output_lines:
+            if 'Total return:' in line or 'Sharpe ratio:' in line or 'Max drawdown:' in line:
+                print(f"   {line.strip()}")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error generating dashboard data:")
+        print(e.stderr)
+        return
+    
+    # Start dashboard server
+    print("\n🌐 Starting dashboard server...")
+    
+    try:
+        # Check if server is already running
+        import requests
+        response = requests.get("http://localhost:8000", timeout=2)
+        print("✅ Dashboard server already running!")
+    except:
+        print("🚀 Starting new dashboard server...")
+        subprocess.Popen([sys.executable, "serve_dashboard.py"])
+        
+        # Wait a moment for server to start
+        import time
+        time.sleep(2)
+    
+    print("\n🎉 Dashboard ready!")
+    print("🌐 Open in your browser: http://localhost:8000/trading_strategy_dashboard.html")
+    print("\n💡 Tips:")
+    print("   - Alpha999 uses cached ML signals (no probability files needed)")
+    print("   - Use date ranges within cached signal coverage for best performance")
+    print("   - Traditional alphas (003, 041, 042) work with any date range")
+
+if __name__ == "__main__":
+    main() 

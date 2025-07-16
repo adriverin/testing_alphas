@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Strategy Performance Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            padding: 1rem;
+            min-height: 500px; /* Increased minimum height */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .chart-container div[id] {
+            min-height: 450px; /* Ensure charts have proper height */
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .metrics-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+        }
+        
+        .section-title {
+            color: #495057;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .metric-positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .metric-negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .metric-neutral {
+            color: #6c757d;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
+
+        /* Single column layout for better chart visibility */
+        .single-chart-row {
+            margin-bottom: 1rem;
+        }
+
+        /* Ensure Plotly charts are properly positioned */
+        .js-plotly-plot {
+            width: 100% !important;
+            margin: 0 auto;
+        }
+
+        /* Remove any default styling that might affect positioning */
+        .chart-container .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header class="dashboard-header">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <h1 class="display-4 mb-0">Trading Strategy Performance Dashboard</h1>
+                    <p class="lead">Interactive Analysis of Strategy Returns and Risk Metrics</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <!-- Performance Charts Section -->
+        <div class="row">
+            <div class="col-12">
+                <h2 class="section-title">Performance Analysis</h2>
+            </div>
+        </div>
+        
+        <!-- Cumulative Returns -->
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="cumulative-returns" class="loading">Cumulative Returns Chart</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="cumulative-returns-log" class="loading">Log Scale Chart</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Daily Returns and Histogram -->
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="daily-returns" class="loading">Daily Returns Chart</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="returns-histogram" class="loading">Returns Histogram</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Risk Metrics Section -->
+        <div class="row">
+            <div class="col-12">
+                <h2 class="section-title">Risk-Adjusted Performance</h2>
+            </div>
+        </div>
+        
+        <!-- Rolling Ratios -->
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="rolling-sharpe" class="loading">Rolling Sharpe Ratio</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="rolling-sortino" class="loading">Rolling Sortino Ratio</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="rolling-info-ratio" class="loading">Rolling Information Ratio</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Drawdown Analysis -->
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="underwater-plot" class="loading">Underwater Plot</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="worst-drawdowns" class="loading">Worst Drawdowns</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Monthly Analysis Section -->
+        <div class="row">
+            <div class="col-12">
+                <h2 class="section-title">Monthly Performance Analysis</h2>
+            </div>
+        </div>
+        
+        <!-- Monthly Returns -->
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="monthly-heatmap" class="loading">Monthly Returns Heatmap</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row single-chart-row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="monthly-histogram" class="loading">Monthly Returns Histogram</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Performance Metrics Table -->
+        <div class="row">
+            <div class="col-12">
+                <h2 class="section-title">Performance Metrics Summary</h2>
+                <div class="metrics-table">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="metrics-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Strategy</th>
+                                    <th>Benchmark</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Metrics will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center py-4 mt-5">
+        <div class="container">
+            <p class="text-muted">&copy; 2024 Trading Strategy Dashboard. Interactive performance analysis powered by Plotly.js</p>
+        </div>
+    </footer>
+
+    <script>
+        // Global variables to store dashboard data
+        let dashboardData = null;
+        
+        // Load real trading data from JSON file or file input
+        async function loadDashboardData() {
+            try {
+                console.log('🔄 Loading dashboard data from JSON file...');
+                
+                // Try to load dashboard_data.json file
+                const response = await fetch('dashboard_data.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Validate the loaded data
+                if (!data || !data.time_series || !data.time_series.dates) {
+                    throw new Error('Invalid data structure in JSON file');
+                }
+                
+                console.log('✅ Dashboard data loaded successfully');
+                console.log(`📊 Strategy: ${data.metadata.strategy_name}`);
+                console.log(`📅 Period: ${data.metadata.start_date} to ${data.metadata.end_date}`);
+                console.log(`🎯 Assets: ${data.metadata.assets.join(', ')}`);
+                console.log(`📈 Data points: ${data.time_series.dates.length}`);
+                
+                return data;
+                
+            } catch (error) {
+                console.warn('⚠️ Could not load dashboard_data.json, using sample data:', error.message);
+                console.log('💡 To use real data:');
+                console.log('   1. Run: python generate_dashboard_data.py');
+                console.log('   2. Use the "Load Data File" button below');
+                console.log('   3. Or serve this HTML via HTTP (python serve_dashboard.py)');
+                
+                // Show file input option
+                showFileInputOption();
+                
+                // Fallback to sample data
+                console.log('🎲 Generating sample data for demonstration...');
+                const sampleData = generateSampleData();
+                
+                // Validate sample data too
+                if (!sampleData || !sampleData.time_series || !sampleData.time_series.dates) {
+                    throw new Error('Failed to generate valid sample data');
+                }
+                
+                console.log('✅ Sample data generated successfully');
+                return sampleData;
+            }
+        }
+        
+        // Show file input option for loading data
+        function showFileInputOption() {
+            const headerContainer = document.querySelector('.dashboard-header .container');
+            if (headerContainer && !document.getElementById('file-input-container')) {
+                const fileInputHtml = `
+                    <div id="file-input-container" class="mt-3 text-center">
+                        <div class="alert alert-info d-inline-block">
+                            <strong>💡 Load Your Data:</strong>
+                            <input type="file" id="data-file-input" accept=".json" class="form-control mt-2" 
+                                   style="max-width: 300px; display: inline-block;">
+                            <button onclick="loadFileData()" class="btn btn-primary btn-sm mt-2">Load Data File</button>
+                        </div>
+                    </div>
+                `;
+                headerContainer.insertAdjacentHTML('beforeend', fileInputHtml);
+            }
+        }
+        
+        // Load data from selected file
+        async function loadFileData() {
+            const fileInput = document.getElementById('data-file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a JSON file first');
+                return;
+            }
+            
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                console.log('✅ File data loaded successfully');
+                console.log(`📊 Strategy: ${data.metadata.strategy_name}`);
+                
+                // Hide file input
+                document.getElementById('file-input-container').style.display = 'none';
+                
+                // Reinitialize dashboard with real data
+                dashboardData = data;
+                await reinitializeDashboard(data);
+                
+            } catch (error) {
+                console.error('❌ Error loading file:', error);
+                alert('Error loading file: ' + error.message);
+            }
+        }
+        
+        // Reinitialize dashboard with new data
+        async function reinitializeDashboard(data) {
+            // Update page title
+            if (data.metadata) {
+                document.title = `Trading Dashboard - ${data.metadata.strategy_name}`;
+                const headerTitle = document.querySelector('h1');
+                if (headerTitle) {
+                    headerTitle.textContent = `${data.metadata.strategy_name} Performance Dashboard`;
+                }
+            }
+            
+            // Clear and reload all charts
+            const chartIds = [
+                'cumulative-returns', 'cumulative-returns-log', 'daily-returns', 
+                'returns-histogram', 'rolling-sharpe', 'rolling-sortino', 
+                'rolling-info-ratio', 'underwater-plot', 'monthly-heatmap', 
+                'monthly-histogram', 'worst-drawdowns'
+            ];
+            
+            chartIds.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.innerHTML = '<div class="loading">Loading chart...</div>';
+                }
+            });
+            
+            // Reinitialize all charts
+            setTimeout(() => {
+                plotCumulativeReturns(data);
+                plotCumulativeReturnsLog(data);
+                plotDailyReturns(data);
+                plotReturnsHistogram(data);
+                plotRollingSharpe(data);
+                plotRollingSortino(data);
+                plotRollingInfoRatio(data);
+                plotUnderwaterPlot(data);
+                plotMonthlyHeatmap(data);
+                plotMonthlyHistogram(data);
+                plotWorstDrawdowns(data);
+                populateMetricsTable(data);
+            }, 100);
+        }
+        
+        // Enhanced sample data generation for demo purposes
+        function generateSampleData() {
+            console.log('📊 Generating sample data for demonstration...');
+            
+            const startDate = new Date('2020-01-01');
+            const endDate = new Date('2024-01-01');
+            const days = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+            
+            const dates = [];
+            const strategyReturns = [];
+            const benchmarkReturns = [];
+            const cumulativeStrategy = [1];
+            const cumulativeBenchmark = [1];
+            
+            // Generate sample returns with more realistic patterns
+            for (let i = 0; i < days; i++) {
+                const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+                dates.push(date);
+                
+                // More sophisticated random walk with volatility clustering
+                const volatility = 0.015 + 0.01 * Math.sin(i / 100); // Time-varying volatility
+                const strategyReturn = (Math.random() - 0.47) * volatility; // Slight positive bias
+                const benchmarkReturn = (Math.random() - 0.5) * (volatility * 0.8);
+                
+                strategyReturns.push(strategyReturn);
+                benchmarkReturns.push(benchmarkReturn);
+                
+                cumulativeStrategy.push(cumulativeStrategy[i] * (1 + strategyReturn));
+                cumulativeBenchmark.push(cumulativeBenchmark[i] * (1 + benchmarkReturn));
+            }
+            
+            // Calculate drawdown for sample data
+            const cumStrat = cumulativeStrategy.slice(1);
+            const peak = [];
+            const drawdown = [];
+            let currentPeak = cumStrat[0];
+            
+            for (let i = 0; i < cumStrat.length; i++) {
+                if (cumStrat[i] > currentPeak) {
+                    currentPeak = cumStrat[i];
+                }
+                peak.push(currentPeak);
+                drawdown.push((cumStrat[i] / currentPeak - 1) * 100);
+            }
+            
+            // Generate rolling metrics for sample data
+            const rollingWindow = Math.min(252, Math.floor(strategyReturns.length / 4));
+            const rollingSharpe = [];
+            const rollingSortino = [];
+            const rollingInfoRatio = [];
+            const rollingDates = [];
+            
+            for (let i = rollingWindow - 1; i < strategyReturns.length; i++) {
+                const window = strategyReturns.slice(i - rollingWindow + 1, i + 1);
+                const mean = window.reduce((a, b) => a + b, 0) / window.length;
+                const std = Math.sqrt(window.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / window.length);
+                
+                rollingSharpe.push(mean / std * Math.sqrt(252));
+                rollingSortino.push((mean / std * Math.sqrt(252)) * 1.2); // Approximation
+                rollingInfoRatio.push((mean / std * Math.sqrt(252)) * 0.8); // Approximation
+                rollingDates.push(dates[i]);
+            }
+            
+            // Generate monthly data
+            const monthlyDates = [];
+            const monthlyStrategyReturns = [];
+            const monthlyBenchmarkReturns = [];
+            
+            let currentMonth = startDate.getMonth();
+            let currentYear = startDate.getFullYear();
+            let monthlyStratReturn = 0;
+            let monthlyBenchReturn = 0;
+            
+            for (let i = 0; i < strategyReturns.length; i++) {
+                const date = dates[i];
+                if (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear) {
+                    // End of month
+                    monthlyDates.push(new Date(currentYear, currentMonth, 1));
+                    monthlyStrategyReturns.push(monthlyStratReturn * 100);
+                    monthlyBenchmarkReturns.push(monthlyBenchReturn * 100);
+                    
+                    currentMonth = date.getMonth();
+                    currentYear = date.getFullYear();
+                    monthlyStratReturn = strategyReturns[i];
+                    monthlyBenchReturn = benchmarkReturns[i];
+                } else {
+                    monthlyStratReturn = (1 + monthlyStratReturn) * (1 + strategyReturns[i]) - 1;
+                    monthlyBenchReturn = (1 + monthlyBenchReturn) * (1 + benchmarkReturns[i]) - 1;
+                }
+            }
+            
+            return {
+                metadata: {
+                    strategy_name: 'Sample Strategy',
+                    start_date: '2020-01-01',
+                    end_date: '2024-01-01',
+                    assets: ['SAMPLE-1', 'SAMPLE-2'],
+                    interval: '1d',
+                    total_observations: days
+                },
+                time_series: {
+                    dates: dates.map(d => d.toISOString()),
+                    strategy_returns: strategyReturns,
+                    benchmark_returns: benchmarkReturns,
+                    cumulative_strategy: cumulativeStrategy.slice(1),
+                    cumulative_benchmark: cumulativeBenchmark.slice(1),
+                    drawdown_strategy: drawdown,
+                    turnover: strategyReturns.map(() => Math.random() * 0.1),
+                    rolling_sharpe: rollingSharpe,
+                    rolling_sortino: rollingSortino,
+                    rolling_info_ratio: rollingInfoRatio,
+                    rolling_dates: rollingDates.map(d => d.toISOString())
+                },
+                performance_metrics: {
+                    strategy: {
+                        total_return: ((cumulativeStrategy[cumulativeStrategy.length - 1] - 1) * 100),
+                        annualized_return: 12.5,
+                        volatility: 15.2,
+                        sharpe_ratio: 0.82,
+                        sortino_ratio: 1.15,
+                        information_ratio: 0.65,
+                        max_drawdown: -8.3,
+                        calmar_ratio: 1.51,
+                        win_rate: 52.3,
+                        skewness: -0.15,
+                        kurtosis: 2.85,
+                        beta: 0.75,
+                        alpha: 4.2,
+                        avg_turnover: 8.5
+                    },
+                    benchmark: {
+                        total_return: ((cumulativeBenchmark[cumulativeBenchmark.length - 1] - 1) * 100),
+                        annualized_return: 8.1,
+                        volatility: 12.8,
+                        sharpe_ratio: 0.63,
+                        max_drawdown: -12.1
+                    }
+                },
+                monthly_data: {
+                    dates: monthlyDates.map(d => d.toISOString()),
+                    strategy_returns: monthlyStrategyReturns,
+                    benchmark_returns: monthlyBenchmarkReturns
+                },
+                risk_metrics: {
+                    worst_drawdowns: [
+                        {
+                            start: '2020-03-15T00:00:00.000Z',
+                            end: '2020-04-01T00:00:00.000Z',
+                            magnitude: -15.2,
+                            duration: 17
+                        },
+                        {
+                            start: '2021-09-10T00:00:00.000Z',
+                            end: '2021-10-05T00:00:00.000Z',
+                            magnitude: -8.7,
+                            duration: 25
+                        }
+                    ]
+                },
+                stop_loss: { enabled: false }
+            };
+        }
+        
+        // Calculate rolling metrics
+        function calculateRollingMetric(returns, window, metricFunc) {
+            if (!returns || !Array.isArray(returns) || returns.length === 0) {
+                console.error('❌ Invalid returns array for rolling metric calculation');
+                return [];
+            }
+            
+            const rolling = [];
+            for (let i = window - 1; i < returns.length; i++) {
+                const windowData = returns.slice(i - window + 1, i + 1);
+                try {
+                    rolling.push(metricFunc(windowData));
+                } catch (error) {
+                    console.warn('⚠️ Error calculating rolling metric at index', i, ':', error.message);
+                    rolling.push(0); // Use 0 as fallback
+                }
+            }
+            return rolling;
+        }
+        
+        // Calculate Sharpe ratio
+        function sharpeRatio(returns, riskFreeRate = 0.02) {
+            const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+            const variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length;
+            const std = Math.sqrt(variance);
+            return ((mean * 252) - riskFreeRate) / (std * Math.sqrt(252));
+        }
+        
+        // Calculate Sortino ratio
+        function sortinoRatio(returns, riskFreeRate = 0.02) {
+            const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+            const downside = returns.filter(r => r < 0);
+            if (downside.length === 0) return Infinity;
+            const downsideVariance = downside.reduce((a, b) => a + Math.pow(b, 2), 0) / returns.length;
+            const downsideStd = Math.sqrt(downsideVariance);
+            return ((mean * 252) - riskFreeRate) / (downsideStd * Math.sqrt(252));
+        }
+        
+        // Calculate Information ratio
+        function informationRatio(strategyReturns, benchmarkReturns) {
+            const excessReturns = strategyReturns.map((r, i) => r - benchmarkReturns[i]);
+            const mean = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
+            const variance = excessReturns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / excessReturns.length;
+            const trackingError = Math.sqrt(variance);
+            return (mean * Math.sqrt(252)) / (trackingError * Math.sqrt(252));
+        }
+        
+        // Calculate drawdown
+        function calculateDrawdown(cumulativeReturns) {
+            const peak = [];
+            const drawdown = [];
+            let currentPeak = cumulativeReturns[0];
+            
+            for (let i = 0; i < cumulativeReturns.length; i++) {
+                if (cumulativeReturns[i] > currentPeak) {
+                    currentPeak = cumulativeReturns[i];
+                }
+                peak.push(currentPeak);
+                drawdown.push((cumulativeReturns[i] / currentPeak - 1) * 100);
+            }
+            
+            return { peak, drawdown };
+        }
+        
+        // Find worst drawdown periods
+        function findWorstDrawdowns(dates, drawdown, n = 5) {
+            const drawdownPeriods = [];
+            let inDrawdown = false;
+            let startIdx = 0;
+            let minDrawdown = 0;
+            
+            for (let i = 0; i < drawdown.length; i++) {
+                if (drawdown[i] < 0 && !inDrawdown) {
+                    inDrawdown = true;
+                    startIdx = i;
+                    minDrawdown = drawdown[i];
+                } else if (drawdown[i] < minDrawdown && inDrawdown) {
+                    minDrawdown = drawdown[i];
+                } else if (drawdown[i] >= 0 && inDrawdown) {
+                    drawdownPeriods.push({
+                        start: dates[startIdx],
+                        end: dates[i - 1],
+                        minDrawdown: minDrawdown,
+                        duration: i - startIdx
+                    });
+                    inDrawdown = false;
+                }
+            }
+            
+            return drawdownPeriods.sort((a, b) => a.minDrawdown - b.minDrawdown).slice(0, n);
+        }
+        
+        // Generate monthly returns data
+        function generateMonthlyReturns(dates, returns) {
+            const monthlyData = {};
+            
+            for (let i = 0; i < dates.length; i++) {
+                const year = dates[i].getFullYear();
+                const month = dates[i].getMonth();
+                const key = `${year}-${month}`;
+                
+                if (!monthlyData[key]) {
+                    monthlyData[key] = {
+                        year,
+                        month,
+                        returns: []
+                    };
+                }
+                monthlyData[key].returns.push(returns[i]);
+            }
+            
+            const monthlyReturns = Object.values(monthlyData).map(data => {
+                const monthlyReturn = data.returns.reduce((acc, r) => acc * (1 + r), 1) - 1;
+                return {
+                    year: data.year,
+                    month: data.month,
+                    return: monthlyReturn * 100
+                };
+            });
+            
+            return monthlyReturns;
+        }
+        
+        // Initialize dashboard
+        async function initializeDashboard() {
+            try {
+                console.log('🚀 Starting dashboard initialization...');
+                
+                // Load data (either from JSON file or sample data)
+                dashboardData = await loadDashboardData();
+                
+                // Debug: Check data structure
+                console.log('📊 Dashboard data loaded:', {
+                    hasMetadata: !!dashboardData.metadata,
+                    hasTimeSeries: !!dashboardData.time_series,
+                    hasDates: !!(dashboardData.time_series && dashboardData.time_series.dates),
+                    dateCount: dashboardData.time_series && dashboardData.time_series.dates ? dashboardData.time_series.dates.length : 0,
+                    hasReturns: !!(dashboardData.time_series && dashboardData.time_series.strategy_returns),
+                    returnsCount: dashboardData.time_series && dashboardData.time_series.strategy_returns ? dashboardData.time_series.strategy_returns.length : 0
+                });
+                
+                // Validate essential data structure
+                if (!dashboardData || !dashboardData.time_series) {
+                    throw new Error('Invalid data structure: missing time_series');
+                }
+                
+                // Update page title with strategy name
+                if (dashboardData.metadata) {
+                    document.title = `Trading Dashboard - ${dashboardData.metadata.strategy_name}`;
+                    const headerTitle = document.querySelector('h1');
+                    if (headerTitle) {
+                        headerTitle.textContent = `${dashboardData.metadata.strategy_name} Performance Dashboard`;
+                    }
+                }
+                
+                console.log('📈 Starting chart creation...');
+                
+                // 1. Cumulative Returns Chart
+                plotCumulativeReturns(dashboardData);
+                
+                // 2. Cumulative Returns Log Scale
+                plotCumulativeReturnsLog(dashboardData);
+                
+                // 3. Daily Returns
+                plotDailyReturns(dashboardData);
+                
+                // 4. Returns Histogram
+                plotReturnsHistogram(dashboardData);
+                
+                // 5. Rolling Sharpe Ratio
+                plotRollingSharpe(dashboardData);
+                
+                // 6. Rolling Sortino Ratio
+                plotRollingSortino(dashboardData);
+                
+                // 7. Rolling Information Ratio
+                plotRollingInfoRatio(dashboardData);
+                
+                // 8. Underwater Plot
+                plotUnderwaterPlot(dashboardData);
+                
+                // 9. Monthly Returns Heatmap
+                plotMonthlyHeatmap(dashboardData);
+                
+                // 10. Monthly Returns Histogram
+                plotMonthlyHistogram(dashboardData);
+                
+                // 11. Worst Drawdowns
+                plotWorstDrawdowns(dashboardData);
+                
+                // 12. Metrics Table
+                populateMetricsTable(dashboardData);
+                
+                console.log('✅ Dashboard initialization complete!');
+                
+            } catch (error) {
+                console.error('❌ Dashboard initialization failed:', error);
+                console.error('❌ Error details:', error.stack);
+                
+                // Show error message to user
+                const errorContainer = document.getElementById('error-container') || document.body;
+                errorContainer.innerHTML = `
+                    <div class="container mt-5">
+                        <div class="alert alert-danger" role="alert">
+                            <h4 class="alert-heading">Dashboard Error</h4>
+                            <p>Failed to initialize the dashboard: ${error.message}</p>
+                            <hr>
+                            <p class="mb-0">Please ensure dashboard_data.json is available or check the console for details.</p>
+                            <details class="mt-3">
+                                <summary>Technical Details</summary>
+                                <pre class="mt-2 text-muted">${error.stack}</pre>
+                            </details>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function plotCumulativeReturns(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.dates) {
+                    console.error('❌ Invalid data structure for cumulative returns chart');
+                    document.getElementById('cumulative-returns').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const dates = data.time_series.dates.map(d => new Date(d));
+                
+                // Ensure we have valid cumulative data
+                if (!data.time_series.cumulative_strategy || data.time_series.cumulative_strategy.length === 0) {
+                    console.error('❌ No cumulative strategy data available');
+                    document.getElementById('cumulative-returns').innerHTML = '<div class="alert alert-warning">No cumulative returns data available</div>';
+                    return;
+                }
+                
+                const trace1 = {
+                    x: dates,
+                    y: data.time_series.cumulative_strategy,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: data.metadata ? data.metadata.strategy_name : 'Strategy',
+                    line: { color: '#1f77b4', width: 2 },
+                    hovertemplate: '<b>%{fullData.name}</b><br>' +
+                                  'Date: %{x}<br>' +
+                                  'Cumulative Return: %{y:.4f}<extra></extra>'
+                };
+                
+                const trace2 = {
+                    x: dates,
+                    y: data.time_series.cumulative_benchmark,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Benchmark',
+                    line: { color: '#ff7f0e', width: 2 },
+                    hovertemplate: '<b>%{fullData.name}</b><br>' +
+                                  'Date: %{x}<br>' +
+                                  'Cumulative Return: %{y:.4f}<extra></extra>'
+                };
+                
+                // Calculate proper y-axis range
+                const allValues = [...data.time_series.cumulative_strategy, ...data.time_series.cumulative_benchmark];
+                const minVal = Math.min(...allValues);
+                const maxVal = Math.max(...allValues);
+                const padding = (maxVal - minVal) * 0.1;
+                
+                const layout = {
+                    title: 'Cumulative Returns vs Benchmark',
+                    xaxis: { title: 'Date' },
+                    yaxis: { 
+                        title: 'Cumulative Return',
+                        range: [minVal - padding, maxVal + padding]
+                    },
+                    hovermode: 'x unified',
+                    responsive: true,
+                    showlegend: true,
+                    height: 450,
+                    margin: { l: 50, r: 50, t: 60, b: 60 },
+                    autosize: true
+                };
+                
+                Plotly.newPlot('cumulative-returns', [trace1, trace2], layout, {responsive: true, displayModeBar: false});
+            } catch (error) {
+                console.error('❌ Error plotting cumulative returns:', error);
+                document.getElementById('cumulative-returns').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotCumulativeReturnsLog(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.dates) {
+                    console.error('❌ Invalid data structure for cumulative returns log chart');
+                    document.getElementById('cumulative-returns-log').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const dates = data.time_series.dates.map(d => new Date(d));
+                
+                // Handle log scale by ensuring all values are positive
+                // Add 1 to cumulative returns to make them suitable for log scale
+                const strategyCumulative = data.time_series.cumulative_strategy.map(val => Math.max(val, 0.001)); // Minimum 0.001 for log scale
+                const benchmarkCumulative = data.time_series.cumulative_benchmark.map(val => Math.max(val, 0.001));
+                
+                const trace1 = {
+                    x: dates,
+                    y: strategyCumulative,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: data.metadata ? data.metadata.strategy_name : 'Strategy',
+                    line: { color: '#1f77b4', width: 2 },
+                    hovertemplate: '<b>%{fullData.name}</b><br>' +
+                                  'Date: %{x}<br>' +
+                                  'Cumulative Return: %{y:.4f}<extra></extra>'
+                };
+                
+                const trace2 = {
+                    x: dates,
+                    y: benchmarkCumulative,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Benchmark',
+                    line: { color: '#ff7f0e', width: 2 },
+                    hovertemplate: '<b>%{fullData.name}</b><br>' +
+                                  'Date: %{x}<br>' +
+                                  'Cumulative Return: %{y:.4f}<extra></extra>'
+                };
+                
+                const layout = {
+                    title: 'Cumulative Returns vs Benchmark (Log Scale)',
+                    xaxis: { title: 'Date' },
+                    yaxis: { 
+                        title: 'Cumulative Return (Log Scale)', 
+                        type: 'log',
+                        range: [Math.log10(0.001), Math.log10(Math.max(...strategyCumulative, ...benchmarkCumulative) * 1.1)]
+                    },
+                    hovermode: 'x unified',
+                    responsive: true,
+                    showlegend: true,
+                    height: 450,
+                    margin: { l: 50, r: 50, t: 60, b: 60 },
+                    autosize: true
+                };
+                
+                Plotly.newPlot('cumulative-returns-log', [trace1, trace2], layout, {responsive: true, displayModeBar: false});
+            } catch (error) {
+                console.error('❌ Error plotting cumulative returns log:', error);
+                document.getElementById('cumulative-returns-log').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotDailyReturns(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.dates || !data.time_series.strategy_returns) {
+                    console.error('❌ Invalid data structure for daily returns chart');
+                    document.getElementById('daily-returns').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const dates = data.time_series.dates.map(d => new Date(d));
+                
+                const trace = {
+                    x: dates,
+                    y: data.time_series.strategy_returns.map(r => r * 100),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Daily Returns',
+                    line: { color: '#2ca02c', width: 1 },
+                    hovertemplate: '<b>Daily Returns</b><br>' +
+                                  'Date: %{x}<br>' +
+                                  'Return: %{y:.3f}%<extra></extra>'
+                };
+                
+                const layout = {
+                    title: 'Daily Returns (%)',
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Return (%)' },
+                    hovermode: 'closest',
+                    responsive: true,
+                    height: 450,
+                    margin: { l: 50, r: 50, t: 60, b: 60 },
+                    autosize: true
+                };
+                
+                Plotly.newPlot('daily-returns', [trace], layout, {responsive: true, displayModeBar: false});
+            } catch (error) {
+                console.error('❌ Error plotting daily returns:', error);
+                document.getElementById('daily-returns').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotReturnsHistogram(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.strategy_returns) {
+                    console.error('❌ Invalid data structure for returns histogram chart');
+                    document.getElementById('returns-histogram').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const trace = {
+                    x: data.time_series.strategy_returns.map(r => r * 100),
+                    type: 'histogram',
+                    nbinsx: 50,
+                    name: 'Return Distribution',
+                    marker: { color: '#d62728' },
+                    hovertemplate: '<b>Return Distribution</b><br>' +
+                                  'Return Range: %{x}%<br>' +
+                                  'Frequency: %{y}<extra></extra>'
+                };
+                
+                const layout = {
+                    title: 'Distribution of Daily Returns',
+                    xaxis: { title: 'Return (%)' },
+                    yaxis: { title: 'Frequency' },
+                    responsive: true
+                };
+                
+                Plotly.newPlot('returns-histogram', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('❌ Error plotting returns histogram:', error);
+                document.getElementById('returns-histogram').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotRollingSharpe(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.strategy_returns) {
+                    console.error('❌ Invalid data structure for rolling Sharpe chart');
+                    document.getElementById('rolling-sharpe').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                // Use pre-calculated rolling metrics if available
+                let rollingDates, rollingSharpe;
+                
+                if (data.time_series.rolling_sharpe && data.time_series.rolling_sharpe.length > 0) {
+                    rollingDates = data.time_series.rolling_dates.map(d => new Date(d));
+                    rollingSharpe = data.time_series.rolling_sharpe;
+                } else {
+                    // Fallback calculation
+                    const window = Math.min(252, Math.floor(data.time_series.strategy_returns.length / 4));
+                    rollingSharpe = calculateRollingMetric(data.time_series.strategy_returns, window, sharpeRatio);
+                    rollingDates = data.time_series.dates.slice(window - 1).map(d => new Date(d));
+                }
+                
+                const trace = {
+                    x: rollingDates,
+                    y: rollingSharpe,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Rolling Sharpe Ratio',
+                    line: { color: '#9467bd', width: 2 },
+                    hovertemplate: '<b>Rolling Sharpe Ratio</b><br>' +
+                                  'Date: %{x}<br>' +
+                                  'Sharpe Ratio: %{y:.3f}<extra></extra>'
+                };
+                
+                const layout = {
+                    title: 'Rolling Sharpe Ratio',
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Sharpe Ratio' },
+                    hovermode: 'closest',
+                    responsive: true
+                };
+                
+                Plotly.newPlot('rolling-sharpe', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('❌ Error plotting rolling Sharpe:', error);
+                document.getElementById('rolling-sharpe').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotRollingSortino(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.strategy_returns) {
+                    console.error('❌ Invalid data structure for rolling Sortino chart');
+                    document.getElementById('rolling-sortino').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const window = 252;
+                const rollingSortino = calculateRollingMetric(data.time_series.strategy_returns, window, sortinoRatio);
+                const rollingDates = data.time_series.dates.slice(window - 1).map(d => new Date(d));
+                
+                const trace = {
+                    x: rollingDates,
+                    y: rollingSortino,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Rolling Sortino Ratio',
+                    line: { color: '#8c564b', width: 2 }
+                };
+                
+                const layout = {
+                    title: 'Rolling Sortino Ratio (252-day)',
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Sortino Ratio' },
+                    hovermode: 'closest',
+                    responsive: true
+                };
+                
+                Plotly.newPlot('rolling-sortino', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('❌ Error plotting rolling Sortino:', error);
+                document.getElementById('rolling-sortino').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotRollingInfoRatio(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.strategy_returns || !data.time_series.benchmark_returns) {
+                    console.error('❌ Invalid data structure for rolling information ratio chart');
+                    document.getElementById('rolling-info-ratio').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const window = 252;
+                const rollingInfoRatio = [];
+                const rollingDates = data.time_series.dates.slice(window - 1).map(d => new Date(d));
+                
+                for (let i = window - 1; i < data.time_series.dates.length; i++) {
+                    const strategyWindow = data.time_series.strategy_returns.slice(i - window + 1, i + 1);
+                    const benchmarkWindow = data.time_series.benchmark_returns.slice(i - window + 1, i + 1);
+                    rollingInfoRatio.push(informationRatio(strategyWindow, benchmarkWindow));
+                }
+                
+                const trace = {
+                    x: rollingDates,
+                    y: rollingInfoRatio,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Rolling Information Ratio',
+                    line: { color: '#e377c2', width: 2 }
+                };
+                
+                const layout = {
+                    title: 'Rolling Information Ratio (252-day)',
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Information Ratio' },
+                    hovermode: 'closest',
+                    responsive: true
+                };
+                
+                Plotly.newPlot('rolling-info-ratio', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('❌ Error plotting rolling information ratio:', error);
+                document.getElementById('rolling-info-ratio').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotUnderwaterPlot(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.dates) {
+                    console.error('❌ Invalid data structure for underwater plot chart');
+                    document.getElementById('underwater-plot').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const dates = data.time_series.dates.map(d => new Date(d));
+                
+                // Use drawdown data if available, otherwise calculate it
+                let drawdown;
+                if (data.time_series.drawdown_strategy && data.time_series.drawdown_strategy.length > 0) {
+                    drawdown = data.time_series.drawdown_strategy;
+                } else {
+                    const { drawdown: calculated } = calculateDrawdown(data.time_series.cumulative_strategy);
+                    drawdown = calculated;
+                }
+                
+                const trace = {
+                    x: dates,
+                    y: drawdown,
+                    type: 'scatter',
+                    mode: 'lines',
+                    fill: 'tonexty',
+                    name: 'Drawdown',
+                    line: { color: '#ff7f0e', width: 1 },
+                    fillcolor: 'rgba(255, 127, 14, 0.3)',
+                    hovertemplate: '<b>Drawdown</b><br>' +
+                                  'Date: %{x}<br>' +
+                                  'Drawdown: %{y:.2f}%<extra></extra>'
+                };
+                
+                const layout = {
+                    title: 'Underwater Plot (Drawdown Curve)',
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Drawdown (%)' },
+                    hovermode: 'closest',
+                    responsive: true
+                };
+                
+                Plotly.newPlot('underwater-plot', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('❌ Error plotting underwater plot:', error);
+                document.getElementById('underwater-plot').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+                function plotMonthlyHeatmap(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.dates || !data.time_series.strategy_returns) {
+                    console.error('❌ Invalid data structure for monthly heatmap chart');
+                    document.getElementById('monthly-heatmap').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                console.log('📊 Monthly heatmap: Processing data...', {
+                    datesLength: data.time_series.dates.length,
+                    returnsLength: data.time_series.strategy_returns.length
+                });
+                
+                const monthlyReturns = generateMonthlyReturns(
+                    data.time_series.dates.map(d => new Date(d)), 
+                    data.time_series.strategy_returns
+                );
+                
+                console.log('📊 Monthly heatmap: Generated monthly returns:', monthlyReturns.length, 'months');
+                
+                if (monthlyReturns.length === 0) {
+                    console.error('❌ No monthly returns data available');
+                    document.getElementById('monthly-heatmap').innerHTML = '<div class="alert alert-warning">No monthly data available</div>';
+                    return;
+                }
+                
+                const years = [...new Set(monthlyReturns.map(d => d.year))].sort();
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                
+                console.log('📊 Monthly heatmap: Years found:', years);
+                
+                const z = years.map(year => {
+                    return months.map((_, monthIdx) => {
+                        const monthData = monthlyReturns.find(d => d.year === year && d.month === monthIdx);
+                        return monthData ? monthData.return : null;
+                    });
+                });
+                
+                // Filter out any rows that are completely null
+                const validZ = z.filter(row => row.some(val => val !== null));
+                const validYears = years.filter((year, idx) => z[idx].some(val => val !== null));
+                
+                if (validZ.length === 0) {
+                    console.error('❌ No valid monthly data for heatmap');
+                    document.getElementById('monthly-heatmap').innerHTML = '<div class="alert alert-warning">No valid monthly data for heatmap</div>';
+                    return;
+                }
+                
+                console.log('📊 Monthly heatmap: Final data shape:', validZ.length, 'x', months.length);
+                
+                const trace = {
+                    z: validZ,
+                    x: months,
+                    y: validYears,
+                    type: 'heatmap',
+                    colorscale: 'RdYlGn',
+                    showscale: true,
+                    hoverongaps: false,
+                    hovertemplate: '<b>Monthly Return</b><br>' +
+                                  'Month: %{x}<br>' +
+                                  'Year: %{y}<br>' +
+                                  'Return: %{z:.2f}%<extra></extra>',
+                    zauto: true  // Let Plotly auto-scale the color range
+                };
+                
+                const layout = {
+                    title: 'Monthly Returns Heatmap (%)',
+                    xaxis: { 
+                        title: 'Month',
+                        type: 'category'
+                    },
+                    yaxis: { 
+                        title: 'Year',
+                        type: 'category'
+                    },
+                    responsive: true,
+                    height: 450,
+                    margin: { l: 50, r: 50, t: 60, b: 60 },
+                    autosize: true
+                };
+                
+                console.log('📊 Monthly heatmap: Creating plot...');
+                Plotly.newPlot('monthly-heatmap', [trace], layout, {responsive: true, displayModeBar: false});
+                console.log('✅ Monthly heatmap: Plot created successfully');
+                
+            } catch (error) {
+                console.error('❌ Error plotting monthly heatmap:', error);
+                console.error('❌ Error details:', error.stack);
+                document.getElementById('monthly-heatmap').innerHTML = '<div class="alert alert-danger">Error plotting chart: Something went wrong with axis scaling. Check console for details.</div>';
+            }
+        }
+        
+        function plotMonthlyHistogram(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.dates || !data.time_series.strategy_returns) {
+                    console.error('❌ Invalid data structure for monthly histogram chart');
+                    document.getElementById('monthly-histogram').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                const monthlyReturns = generateMonthlyReturns(
+                    data.time_series.dates.map(d => new Date(d)), 
+                    data.time_series.strategy_returns
+                );
+            
+            const trace = {
+                x: monthlyReturns.map(d => d.return),
+                type: 'histogram',
+                nbinsx: 20,
+                name: 'Monthly Returns',
+                marker: { color: '#17becf' }
+            };
+            
+            const layout = {
+                title: 'Monthly Returns Distribution',
+                xaxis: { title: 'Monthly Return (%)' },
+                yaxis: { title: 'Frequency' },
+                responsive: true
+            };
+            
+                Plotly.newPlot('monthly-histogram', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('❌ Error plotting monthly histogram:', error);
+                document.getElementById('monthly-histogram').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function plotWorstDrawdowns(data) {
+            try {
+                // Validate data structure
+                if (!data || !data.time_series || !data.time_series.dates) {
+                    console.error('❌ Invalid data structure for worst drawdowns chart');
+                    document.getElementById('worst-drawdowns').innerHTML = '<div class="alert alert-danger">Invalid data structure</div>';
+                    return;
+                }
+                
+                // Use pre-calculated worst drawdowns if available
+                let worstDrawdowns;
+                
+                if (data.risk_metrics && data.risk_metrics.worst_drawdowns && data.risk_metrics.worst_drawdowns.length > 0) {
+                    worstDrawdowns = data.risk_metrics.worst_drawdowns.map(dd => ({
+                        minDrawdown: dd.magnitude,
+                        start: new Date(dd.start),
+                        end: new Date(dd.end),
+                        duration: dd.duration
+                    }));
+                } else {
+                    // Fallback calculation
+                    const dates = data.time_series.dates.map(d => new Date(d));
+                    let drawdown;
+                    if (data.time_series.drawdown_strategy && data.time_series.drawdown_strategy.length > 0) {
+                        drawdown = data.time_series.drawdown_strategy;
+                    } else {
+                        const { drawdown: calculated } = calculateDrawdown(data.time_series.cumulative_strategy);
+                        drawdown = calculated;
+                    }
+                    worstDrawdowns = findWorstDrawdowns(dates, drawdown);
+                }
+            
+            if (worstDrawdowns.length === 0) {
+                // Show empty state
+                const trace = {
+                    x: ['No Drawdowns'],
+                    y: [0],
+                    type: 'bar',
+                    name: 'No Significant Drawdowns',
+                    marker: { color: '#28a745' }
+                };
+                
+                const layout = {
+                    title: 'Top 5 Worst Drawdown Periods',
+                    xaxis: { title: 'Drawdown Period' },
+                    yaxis: { title: 'Maximum Drawdown (%)' },
+                    responsive: true
+                };
+                
+                Plotly.newPlot('worst-drawdowns', [trace], layout, {responsive: true});
+                return;
+            }
+            
+            const trace = {
+                x: worstDrawdowns.map((_, i) => `DD ${i + 1}`),
+                y: worstDrawdowns.map(d => d.minDrawdown || d.magnitude),
+                type: 'bar',
+                name: 'Worst Drawdowns',
+                marker: { color: '#bcbd22' },
+                hovertemplate: '<b>Drawdown %{x}</b><br>' +
+                              'Magnitude: %{y:.2f}%<br>' +
+                              '<extra></extra>',
+                customdata: worstDrawdowns.map(d => ({
+                    start: d.start,
+                    end: d.end,
+                    duration: d.duration
+                }))
+            };
+            
+            const layout = {
+                title: `Top ${Math.min(5, worstDrawdowns.length)} Worst Drawdown Periods`,
+                xaxis: { title: 'Drawdown Period' },
+                yaxis: { title: 'Maximum Drawdown (%)' },
+                responsive: true
+            };
+            
+            Plotly.newPlot('worst-drawdowns', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('❌ Error plotting worst drawdowns:', error);
+                document.getElementById('worst-drawdowns').innerHTML = '<div class="alert alert-danger">Error plotting chart: ' + error.message + '</div>';
+            }
+        }
+        
+        function populateMetricsTable(data) {
+            // Use pre-calculated metrics from the data
+            const strategy = data.performance_metrics.strategy;
+            const benchmark = data.performance_metrics.benchmark;
+            
+            const metrics = [
+                ['Total Return', `${strategy.total_return.toFixed(2)}%`, `${benchmark.total_return.toFixed(2)}%`],
+                ['Annualized Return', `${strategy.annualized_return.toFixed(2)}%`, `${benchmark.annualized_return.toFixed(2)}%`],
+                ['Annualized Volatility', `${strategy.volatility.toFixed(2)}%`, `${benchmark.volatility.toFixed(2)}%`],
+                ['Sharpe Ratio', strategy.sharpe_ratio.toFixed(3), benchmark.sharpe_ratio.toFixed(3)],
+                ['Sortino Ratio', strategy.sortino_ratio.toFixed(3), '-'],
+                ['Information Ratio', strategy.information_ratio.toFixed(3), '-'],
+                ['Maximum Drawdown', `${strategy.max_drawdown.toFixed(2)}%`, `${benchmark.max_drawdown.toFixed(2)}%`],
+                ['Calmar Ratio', strategy.calmar_ratio.toFixed(3), '-'],
+                ['Win Rate', `${strategy.win_rate.toFixed(1)}%`, '-'],
+                ['Skewness', strategy.skewness.toFixed(3), '-'],
+                ['Kurtosis', strategy.kurtosis.toFixed(3), '-'],
+                ['Number of Observations', data.metadata.total_observations.toString(), '-'],
+                ['Beta vs Benchmark', strategy.beta.toFixed(3), '-'],
+                ['Alpha vs Benchmark', `${strategy.alpha.toFixed(2)}%`, '-'],
+                ['Average Turnover', `${strategy.avg_turnover.toFixed(2)}%`, '-']
+            ];
+            
+            // Add stop-loss information if enabled
+            if (data.stop_loss && data.stop_loss.enabled) {
+                metrics.push([
+                    'Stop-Loss Triggers', 
+                    data.stop_loss.triggers.toString(), 
+                    '-'
+                ]);
+                metrics.push([
+                    'Stop-Loss Threshold', 
+                    `${data.stop_loss.threshold_pct.toFixed(1)}%`, 
+                    '-'
+                ]);
+            }
+            
+            // Add metadata information
+            if (data.metadata) {
+                metrics.push(['Strategy Name', data.metadata.strategy_name, '-']);
+                metrics.push(['Data Interval', data.metadata.interval, '-']);
+                metrics.push(['Price Column', data.metadata.price_column || 'N/A', '-']);
+                metrics.push(['Assets', data.metadata.assets.join(', '), '-']);
+            }
+            
+            const tbody = document.querySelector('#metrics-table tbody');
+            tbody.innerHTML = '';
+            
+            metrics.forEach(([metric, strategyValue, benchmarkValue]) => {
+                const row = document.createElement('tr');
+                
+                // Format strategy value with color coding
+                let strategyClass = 'metric-neutral';
+                if (metric.includes('Return') || metric.includes('Ratio') || metric === 'Win Rate' || metric === 'Alpha vs Benchmark') {
+                    const numValue = parseFloat(strategyValue);
+                    if (!isNaN(numValue)) {
+                        strategyClass = numValue > 0 ? 'metric-positive' : 'metric-negative';
+                    }
+                } else if (metric === 'Maximum Drawdown' || metric === 'Annualized Volatility') {
+                    strategyClass = 'metric-negative';
+                } else if (metric === 'Stop-Loss Triggers' && parseInt(strategyValue) > 0) {
+                    strategyClass = 'metric-negative';
+                }
+                
+                row.innerHTML = `
+                    <td><strong>${metric}</strong></td>
+                    <td class="${strategyClass}">${strategyValue}</td>
+                    <td class="metric-neutral">${benchmarkValue}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Update the header subtitle with strategy info
+            if (data.metadata) {
+                const subtitle = document.querySelector('p.lead');
+                if (subtitle) {
+                    subtitle.innerHTML = `Interactive Analysis of ${data.metadata.strategy_name}<br>
+                                        <small class="text-light">Period: ${data.metadata.start_date} to ${data.metadata.end_date} | 
+                                        Assets: ${data.metadata.assets.join(', ')}</small>`;
+                }
+            }
+        }
+        
+        function calculateSkewness(data, mean) {
+            const n = data.length;
+            const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+            const std = Math.sqrt(variance);
+            const skew = data.reduce((a, b) => a + Math.pow((b - mean) / std, 3), 0) / n;
+            return skew;
+        }
+        
+        function calculateKurtosis(data, mean) {
+            const n = data.length;
+            const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+            const std = Math.sqrt(variance);
+            const kurt = data.reduce((a, b) => a + Math.pow((b - mean) / std, 4), 0) / n;
+            return kurt - 3; // Excess kurtosis
+        }
+        
+        function calculateCovariance(x, y) {
+            const meanX = x.reduce((a, b) => a + b, 0) / x.length;
+            const meanY = y.reduce((a, b) => a + b, 0) / y.length;
+            return x.reduce((a, b, i) => a + (b - meanX) * (y[i] - meanY), 0) / x.length;
+        }
+        
+        // Helper function to add consistent layout settings to all charts
+        function getStandardLayout(title, xAxisTitle = 'Date', yAxisTitle = 'Value') {
+            return {
+                title: title,
+                xaxis: { title: xAxisTitle },
+                yaxis: { title: yAxisTitle },
+                responsive: true,
+                height: 450,
+                margin: { l: 50, r: 50, t: 60, b: 60 },
+                showlegend: true,
+                autosize: true
+            };
+        }
+
+        function getStandardConfig() {
+            return {
+                responsive: true,
+                displayModeBar: false
+            };
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+    </script>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

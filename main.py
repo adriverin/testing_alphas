@@ -310,7 +310,7 @@ def detect_ml_price_column(tickers):
 # "TSLA","TXN","UNH","UNP","UPS","USB","V","VZ","WFC","WMT","XOM"
 # ]
 
-tickers = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD']
+# tickers = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD']
 # tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
 # tickers = ['BTC-USD']
 tickers = ['DOGE-USD', 'PEPE-USD', 'SHIB-USD', 'FLOKI-USD']
@@ -371,6 +371,7 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
     )
     parser.add_argument(
         '--interval',
+        '-i',
         type=str,
         default='1d',
         help='Data interval for crypto mode: 1m, 5m, 15m, 1h, 4h, 1d (default: 1d)'

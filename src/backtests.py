@@ -335,7 +335,7 @@ def run_alpha999_backtest(price_data, alpha_series, stop_loss_pct=None):
         for date, signal in asset_signals.items():
             if signal != 0.0:
                 # Non-zero signal: change position
-                current_position = -signal
+                current_position = signal
             # Always set the current position (whether it changed or not) 
             # i.e. if the signal is 0.0, the position is the same as the previous signal
             positions.loc[(date, asset)] = current_position
