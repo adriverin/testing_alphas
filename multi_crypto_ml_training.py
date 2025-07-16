@@ -371,7 +371,7 @@ if __name__ == "__main__":
         price_column="typical",  # Options: "open", "high", "low", "close", "vwap", "typical", "median"
         forecast_horizon_hours=1,
         vol_window_hours=24,
-        n_quantiles=7,
+        n_quantiles=5,
         hidden_sizes=(32, 16, 8),
         n_epochs=100,  
         lr=5e-5,
