@@ -8,12 +8,12 @@
   "failed_assets": [],
   "total_assets": 4,
   "success_rate": 1.0,
-  "total_training_time": 23.84539771080017,
+  "total_training_time": 20.239110946655273,
   "signals_saved": "artefacts/multi_asset/multi_crypto_signals_improved.parquet",
   "probabilities_saved": null,
   "asset_results": {
     "DOGE-USD": {
-      "training_time": 6.423016786575317,
+      "training_time": 5.905287027359009,
       "signal_stats": {
         "0": 13105,
         "1": 729,
@@ -24,7 +24,7 @@
         "start": "2023-05-05",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "median",
+        "price_column": "typical",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 12,
         "sma_windows": [
@@ -96,7 +96,7 @@
       }
     },
     "PEPE-USD": {
-      "training_time": 5.9935431480407715,
+      "training_time": 4.753070831298828,
       "signal_stats": {
         "0": 13089,
         "1": 728,
@@ -107,7 +107,7 @@
         "start": "2023-05-05",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "median",
+        "price_column": "typical",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 12,
         "sma_windows": [
@@ -179,7 +179,7 @@
       }
     },
     "SHIB-USD": {
-      "training_time": 5.7695159912109375,
+      "training_time": 4.81394100189209,
       "signal_stats": {
         "0": 13105,
         "-1": 729,
@@ -190,7 +190,7 @@
         "start": "2023-05-05",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "median",
+        "price_column": "typical",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 12,
         "sma_windows": [
@@ -262,18 +262,18 @@
       }
     },
     "FLOKI-USD": {
-      "training_time": 5.6593217849731445,
+      "training_time": 4.766812086105347,
       "signal_stats": {
         "0": 13089,
-        "1": 728,
-        "-1": 728
+        "-1": 728,
+        "1": 728
       },
       "config": {
         "symbol": "FLOKI-USD",
         "start": "2023-05-05",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "median",
+        "price_column": "typical",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 12,
         "sma_windows": [
@@ -350,7 +350,7 @@
     "start": "2023-05-05",
     "end": "2025-01-01",
     "interval": "1h",
-    "price_column": "median",
+    "price_column": "typical",
     "forecast_horizon_hours": 1,
     "vol_window_hours": 12,
     "sma_windows": [

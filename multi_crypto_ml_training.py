@@ -368,7 +368,7 @@ if __name__ == "__main__":
         start="2023-05-05", 
         end="2025-01-01",  
         interval="1h",
-        price_column="median",  # Options: "open", "high", "low", "close", "vwap", "typical", "median"
+        price_column="typical",  # Options: "open", "high", "low", "close", "vwap", "typical", "median"
         forecast_horizon_hours=1,
         vol_window_hours=12,
         n_quantiles=5,

@@ -316,7 +316,7 @@ def detect_ml_price_column(tickers):
 tickers = ['DOGE-USD', 'PEPE-USD', 'SHIB-USD', 'FLOKI-USD']
 
 start_date = '2025-01-01'  
-end_date = '2025-07-14'    
+end_date = '2025-07-15'    
 
 backtest_func = run_rank_backtest
 # backtest_func = run_rank_dollar_neutral_backtest
@@ -393,6 +393,11 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
         default=None,
         help='Override price column for returns calculation (open, high, low, close, vwap). If not specified, detects from ML model metadata.'
     )
+    parser.add_argument(
+        '--log-scale',
+        action='store_true',
+        help='Use log scale for performance plots'
+    )
     
     args = parser.parse_args()
 
@@ -434,13 +439,21 @@ def main(tickers=tickers, start_date=start_date, end_date=end_date, number_of_in
     print("\n--- Initializing Alpha Calculator ---")
     alpha_calculator = Alpha101(price_data)
 
+
+    if args.log_scale:
+        print("🔄 Using log scale for performance plots")
+        log_scale = True
+    else:
+        print("🔄 Using linear scale for performance plots")
+        log_scale = False
+
     # --- Execute Chosen Analysis ---
     
     if args.analysis_type == 'interval':
         print("\n--- Running Per-Alpha Interval PDF Report ---")
         if args.stop_loss is not None:
             print(f"🛡️ Individual position stop-loss enabled: {args.stop_loss}%")
-        generate_interval_report(alpha_calculator, price_data, intervals_to_test, first_alpha=first_alpha, last_alpha=last_alpha, stop_loss_pct=args.stop_loss, backtest_func=backtest_func)
+        generate_interval_report(alpha_calculator, price_data, intervals_to_test, first_alpha=first_alpha, last_alpha=last_alpha, stop_loss_pct=args.stop_loss, backtest_func=backtest_func, log_scale=log_scale)
 
     elif args.analysis_type == 'summary':
         print("\n--- Running Summary HTML Report ---")

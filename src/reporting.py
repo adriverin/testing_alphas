@@ -106,7 +106,7 @@ def _detect_data_frequency(returns_series):
     else:
         return 12, "monthly"  # 12 months per year
 
-def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=50):
+def analyze_performance(returns_series, portfolio_info, price_data, fig, title='Strategy Performance', transaction_cost_bps=50, log_scale=False):
     """
     Calculates performance metrics and creates a 3-panel plot on a given figure.
     - Top panel: Cumulative Returns (Equity Curve) vs. Benchmark.
@@ -175,6 +175,9 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
     ax1.text(0.02, 0.98, stats_text, transform=ax1.transAxes, fontsize=9,
              verticalalignment='top', bbox=dict(boxstyle='round,pad=0.3', fc='yellow', alpha=0.5))
     
+    if log_scale:
+        ax1.set_yscale('log')
+    
     ax1.set_ylabel('Cumulative Returns')
     ax1.legend(loc='upper center')
     ax1.grid(True)
@@ -217,7 +220,7 @@ def analyze_performance(returns_series, portfolio_info, price_data, fig, title='
 
 
 
-def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_report.pdf', first_alpha=1, last_alpha=106):
+def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_report.pdf', first_alpha=1, last_alpha=106, log_scale=False):
     """
     Calculates all implemented alphas and backtests them.
     - Adds a Buy & Hold benchmark to each plot.
@@ -242,7 +245,7 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
                     
                     
 
-                    analyze_performance(strategy_returns, portfolio_info, price_data, fig=fig, title=alpha_name)
+                    analyze_performance(strategy_returns, portfolio_info, price_data, fig=fig, title=alpha_name, log_scale=log_scale)
                     
                     pdf.savefig(fig)
                     plt.close(fig)
@@ -263,8 +266,9 @@ def generate_full_report(alpha_calculator, price_data, pdf_path='reports/alpha_r
 
 
 
+# legacy function; still working but not useful
 
-def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=106, stop_loss_pct=None, backtest_func=run_rank_backtest):
+def generate_interval_report(alpha_calculator, full_price_data, date_intervals, report_dir="reports/interval_reports", first_alpha=1, last_alpha=106, stop_loss_pct=None, backtest_func=run_rank_backtest, log_scale=False):    
     """
     Performs a chunked backtest for each alpha over specified date intervals.
     Generates one PDF report per alpha, with each page showing performance in one interval.
@@ -331,7 +335,7 @@ def generate_interval_report(alpha_calculator, full_price_data, date_intervals, 
                     # Create and save the plot for this interval
                     fig = plt.figure(figsize=(11.69, 8.27))
                     analyze_performance(strategy_returns, portfolio_info, interval_price_data, fig=fig, 
-                                        title=f"{alpha_name}\n{interval_title}")
+                                        title=f"{alpha_name}\n{interval_title}", log_scale=log_scale)
                     pdf.savefig(fig)
                     plt.close(fig)
                     
