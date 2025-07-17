@@ -14,9 +14,25 @@ import os
 from pathlib import Path
 import pandas as pd
 
+# Import current configuration from main.py
+try:
+    from main import tickers as current_tickers, start_date as default_start_date, end_date as default_end_date
+    MAIN_CONFIG_AVAILABLE = True
+except ImportError:
+    current_tickers = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'LTC-USD']  # Fallback
+    default_start_date = '2025-01-01'
+    default_end_date = '2025-07-15'
+    MAIN_CONFIG_AVAILABLE = False
+
 def check_cached_signals():
     """Check what cached signal files are available and their date ranges."""
     print("📁 Checking available cached signal files...\n")
+    
+    if MAIN_CONFIG_AVAILABLE:
+        print(f"🎯 Current main.py configuration: {current_tickers}")
+        print(f"📅 Default date range: {default_start_date} to {default_end_date}\n")
+    else:
+        print(f"⚠️  Could not import main.py config, using fallback: {current_tickers}\n")
     
     artifacts_dir = Path("artefacts")
     signal_files = [
@@ -30,6 +46,8 @@ def check_cached_signals():
         signal_files.extend(list(signals_dir.glob("*_improved_signals.parquet")))
     
     available_ranges = {}
+    relevant_signals = {}
+    other_signals = {}
     
     for signal_file in signal_files:
         if signal_file.exists():
@@ -43,20 +61,33 @@ def check_cached_signals():
                 if "multi_crypto_signals" in file_display:
                     assets = list(df.columns) if hasattr(df, 'columns') else ['Unknown']
                     asset_info = f" (Assets: {', '.join(assets)})"
+                    # Check if this multi-asset file contains current tickers
+                    relevant_assets = [a for a in assets if a in current_tickers]
+                    is_relevant = len(relevant_assets) > 0
                 else:
-                    asset_info = ""
+                    # Individual asset file - extract asset name
+                    asset_name = file_display.split('_')[0]
+                    # Handle both formats: BTC-USD and BTCUSD
+                    if not asset_name.endswith('-USD'):
+                        asset_name = asset_name + '-USD'
+                    assets = [asset_name]
+                    asset_info = f" ({asset_name})"
+                    is_relevant = asset_name in current_tickers
                 
-                available_ranges[file_display] = {
+                signal_info = {
                     'start': start_date,
                     'end': end_date,
                     'assets': asset_info,
-                    'shape': df.shape
+                    'shape': df.shape,
+                    'file_path': signal_file
                 }
                 
-                print(f"✅ {file_display}{asset_info}")
-                print(f"   📅 Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-                print(f"   📊 Shape: {df.shape}")
-                print()
+                available_ranges[file_display] = signal_info
+                
+                if is_relevant:
+                    relevant_signals[file_display] = signal_info
+                else:
+                    other_signals[file_display] = signal_info
                 
             except Exception as e:
                 print(f"❌ Error reading {signal_file.name}: {e}")
@@ -66,14 +97,39 @@ def check_cached_signals():
         print("💡 Run: python multi_crypto_ml_training.py")
         return None
     
+    # Display relevant signals first
+    if relevant_signals:
+        print("✅ Relevant cached signals (for current main.py tickers):")
+        for file_display, info in relevant_signals.items():
+            print(f"   📊 {file_display}{info['assets']}")
+            print(f"      📅 Date range: {info['start'].strftime('%Y-%m-%d')} to {info['end'].strftime('%Y-%m-%d')}")
+            print(f"      📊 Shape: {info['shape']}")
+        print()
+    
+    # Display other signals
+    if other_signals:
+        print("📂 Other cached signals (from previous training runs):")
+        for file_display, info in other_signals.items():
+            print(f"   📄 {file_display}{info['assets']}")
+            print(f"      📅 Date range: {info['start'].strftime('%Y-%m-%d')} to {info['end'].strftime('%Y-%m-%d')}")
+            print(f"      📊 Shape: {info['shape']}")
+        print()
+        print("💡 These signals are from previous training runs and won't be used with current tickers.")
+        print("   To use them, update the tickers list in main.py or specify --tickers in generate_dashboard_data.py\n")
+    
     # Find the best date range for Alpha999
     multi_asset_file = "multi_crypto_signals_improved.parquet"
-    if multi_asset_file in available_ranges:
-        best_range = available_ranges[multi_asset_file]
+    if multi_asset_file in relevant_signals:
+        best_range = relevant_signals[multi_asset_file]
         print(f"🎯 Recommended for Alpha999: {best_range['start'].strftime('%Y-%m-%d')} to {best_range['end'].strftime('%Y-%m-%d')}")
         return best_range
+    elif multi_asset_file in available_ranges:
+        best_range = available_ranges[multi_asset_file]
+        print(f"🎯 Multi-asset signals available: {best_range['start'].strftime('%Y-%m-%d')} to {best_range['end'].strftime('%Y-%m-%d')}")
+        print(f"⚠️  But may not match current tickers: {current_tickers}")
+        return best_range
     
-    return list(available_ranges.values())[0] if available_ranges else None
+    return list(relevant_signals.values())[0] if relevant_signals else list(available_ranges.values())[0]
 
 def get_strategy_choice():
     """Get strategy choice from user."""
@@ -115,14 +171,18 @@ def get_date_range(recommended_range=None):
         print(f"   Start: {next_day.strftime('%Y-%m-%d')}")
         print(f"   End: {yesterday.strftime('%Y-%m-%d')}")
         print("1. Use recommended range")
-        print("2. Enter custom range")
+        print("2. Use main.py defaults")
+        print("3. Enter custom range")
         
-        choice = input("Select option (1-2): ").strip()
+        choice = input("Select option (1-3): ").strip()
         if choice == "1":
             return (
                 next_day.strftime('%Y-%m-%d'),
                 yesterday.strftime('%Y-%m-%d')
             )
+        elif choice == "2":
+            print(f"📅 Using main.py defaults: {default_start_date} to {default_end_date}")
+            return default_start_date, default_end_date
     
     print("\n📅 Enter custom date range:")
     start_date = input("Start date (YYYY-MM-DD): ").strip()
@@ -137,6 +197,14 @@ def main():
     print("=" * 60)
     print("🚀 Trading Strategy Dashboard Runner")
     print("=" * 60)
+    
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Generate trading strategy dashboard data")
+    parser.add_argument('--interval', type=str, default='1d',
+                       help='Data interval (1d, 1h, etc.)')    
+    
+    args = parser.parse_args()
     
     # Check available cached signals
     recommended_range = check_cached_signals()
@@ -157,6 +225,7 @@ def main():
     
     cmd = [
         sys.executable, "generate_dashboard_data.py",
+        "--interval", args.interval,
         "--alpha", strategy,
         "--start-date", start_date,
         "--end-date", end_date,

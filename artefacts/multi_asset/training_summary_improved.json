@@ -1,30 +1,30 @@
 {
   "successful_assets": [
-    "DOGE-USD",
-    "PEPE-USD",
-    "SHIB-USD",
-    "FLOKI-USD"
+    "BTC-USD",
+    "ETH-USD",
+    "BNB-USD",
+    "LTC-USD"
   ],
   "failed_assets": [],
   "total_assets": 4,
   "success_rate": 1.0,
-  "total_training_time": 21.064074754714966,
+  "total_training_time": 80.22287845611572,
   "signals_saved": "artefacts/multi_asset/multi_crypto_signals_improved.parquet",
   "probabilities_saved": null,
   "asset_results": {
-    "DOGE-USD": {
-      "training_time": 6.518168926239014,
+    "BTC-USD": {
+      "training_time": 20.73016595840454,
       "signal_stats": {
-        "0": 13105,
-        "1": 729,
-        "-1": 729
+        "0": 50198,
+        "1": 5510,
+        "-1": 5510
       },
       "config": {
-        "symbol": "DOGE-USD",
-        "start": "2023-05-05",
+        "symbol": "BTC-USD",
+        "start": "2018-01-01",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "typical",
+        "price_column": "median",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 24,
         "sma_windows": [
@@ -82,8 +82,8 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
-          95
+          9,
+          91
         ],
         "cache_dir": "artefacts",
         "device": "cpu",
@@ -95,19 +95,19 @@
         "data_cache_dir": "artefacts/data"
       }
     },
-    "PEPE-USD": {
-      "training_time": 4.906262636184692,
+    "ETH-USD": {
+      "training_time": 19.863847255706787,
       "signal_stats": {
-        "0": 13089,
-        "1": 728,
-        "-1": 728
+        "0": 50198,
+        "-1": 5510,
+        "1": 5510
       },
       "config": {
-        "symbol": "PEPE-USD",
-        "start": "2023-05-05",
+        "symbol": "ETH-USD",
+        "start": "2018-01-01",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "typical",
+        "price_column": "median",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 24,
         "sma_windows": [
@@ -165,8 +165,8 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
-          95
+          9,
+          91
         ],
         "cache_dir": "artefacts",
         "device": "cpu",
@@ -178,19 +178,19 @@
         "data_cache_dir": "artefacts/data"
       }
     },
-    "SHIB-USD": {
-      "training_time": 4.8267762660980225,
+    "BNB-USD": {
+      "training_time": 19.864444255828857,
       "signal_stats": {
-        "0": 13105,
-        "1": 729,
-        "-1": 729
+        "0": 50198,
+        "1": 5510,
+        "-1": 5510
       },
       "config": {
-        "symbol": "SHIB-USD",
-        "start": "2023-05-05",
+        "symbol": "BNB-USD",
+        "start": "2018-01-01",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "typical",
+        "price_column": "median",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 24,
         "sma_windows": [
@@ -248,8 +248,8 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
-          95
+          9,
+          91
         ],
         "cache_dir": "artefacts",
         "device": "cpu",
@@ -261,19 +261,19 @@
         "data_cache_dir": "artefacts/data"
       }
     },
-    "FLOKI-USD": {
-      "training_time": 4.812866926193237,
+    "LTC-USD": {
+      "training_time": 19.764420986175537,
       "signal_stats": {
-        "0": 13089,
-        "1": 728,
-        "-1": 728
+        "0": 50455,
+        "1": 5510,
+        "-1": 5253
       },
       "config": {
-        "symbol": "FLOKI-USD",
-        "start": "2023-05-05",
+        "symbol": "LTC-USD",
+        "start": "2018-01-01",
         "end": "2025-01-01",
         "interval": "1h",
-        "price_column": "typical",
+        "price_column": "median",
         "forecast_horizon_hours": 1,
         "vol_window_hours": 24,
         "sma_windows": [
@@ -331,8 +331,8 @@
         "min_improvement": 0.0001,
         "threshold": 0.4,
         "signal_percentiles": [
-          5,
-          95
+          9,
+          91
         ],
         "cache_dir": "artefacts",
         "device": "cpu",
@@ -347,10 +347,10 @@
   },
   "config": {
     "symbol": "BTC-USD",
-    "start": "2023-05-05",
+    "start": "2018-01-01",
     "end": "2025-01-01",
     "interval": "1h",
-    "price_column": "typical",
+    "price_column": "median",
     "forecast_horizon_hours": 1,
     "vol_window_hours": 24,
     "sma_windows": [
@@ -408,8 +408,8 @@
     "min_improvement": 0.0001,
     "threshold": 0.4,
     "signal_percentiles": [
-      5,
-      95
+      9,
+      91
     ],
     "cache_dir": "artefacts",
     "device": "cpu",

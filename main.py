@@ -313,7 +313,8 @@ def detect_ml_price_column(tickers):
 # tickers = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD']
 # tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'DOGE-USD', 'SOL-USD', 'DOT-USD', 'SHIB-USD', 'ADA-USD', 'LTC-USD', 'BNB-USD', 'AVAX-USD']
 # tickers = ['BTC-USD']
-tickers = ['DOGE-USD', 'PEPE-USD', 'SHIB-USD', 'FLOKI-USD']
+# tickers = ['DOGE-USD', 'PEPE-USD', 'SHIB-USD', 'FLOKI-USD']
+tickers = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'LTC-USD']
 
 start_date = '2025-01-01'  
 end_date = '2025-07-15'    

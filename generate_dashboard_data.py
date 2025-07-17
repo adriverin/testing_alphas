@@ -97,12 +97,12 @@ def run_backtest_for_dashboard(tickers=None, start_date=None, end_date=None,
     alpha_calculator = Alpha101(price_data)
     
     # Generate alpha signals using the same approach as interval analysis
-    print(f"📡 Generating {alpha_name} signals (using cached signals approach)...")
+    print(f"📡 Generating {alpha_name} signals (using real-time prediction like interval analysis)...")
     
     try:
         # Calculate the full alpha series once (same as interval analysis)
         if alpha_name == 'alpha999':
-            # Use regular alpha999 which will load cached signals
+            # Use regular alpha999 which will generate fresh predictions if no cached signals for current assets/period
             full_alpha_series = alpha_calculator.alpha999().dropna()
         elif alpha_name == 'alpha999_dynamic':
             # Use alpha999_dynamic with default percentiles
@@ -467,6 +467,7 @@ def main():
             interval=args.interval,
             stop_loss_pct=args.stop_loss
         )
+        
         
         # Save to file
         save_dashboard_data(data, args.output)

@@ -9,29 +9,35 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 
     <style>
         :root {
-            --primary-color: #4a55e0;
+            --primary-color: #4a55e0; /* Blue for neutral/info metrics */
             --secondary-color: #764ba2;
             --background-color: #f4f7fc;
             --card-background-color: #ffffff;
             --text-color: #333;
             --text-muted-color: #6c757d;
             --border-color: #e9ecef;
-            --positive-color: #198754;
-            --negative-color: #dc3545;
+            --positive-color: #198754; /* Green */
+            --negative-color: #dc3545; /* Red */
         }
         body { background-color: var(--background-color); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--text-color); }
-        .dashboard-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 2rem 1.5rem; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; margin-bottom: 2rem; }
+        .dashboard-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 1.2rem 1.5rem; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; margin-bottom: 2rem; }
         #error-display { display: none; }
-        .kpi-card { background: var(--card-background-color); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: center; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .kpi-card { background: var(--card-background-color); border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: center; transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
-        .kpi-icon { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.7; }
-        .kpi-value { font-size: 2.25rem; font-weight: 700; }
-        .kpi-label { font-size: 0.9rem; color: var(--text-muted-color); text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-icon { font-size: 1.5rem; margin-bottom: 0.5rem; opacity: 0.7; }
+        .kpi-value { font-size: 1.8rem; font-weight: 700; }
+        .kpi-label { font-size: 0.85rem; color: var(--text-muted-color); text-transform: uppercase; letter-spacing: 0.5px; }
         .metric-positive { color: var(--positive-color); }
         .metric-negative { color: var(--negative-color); }
+        .metric-info { color: var(--primary-color); }
         .nav-tabs .nav-link { color: var(--text-muted-color); font-weight: 600; border: none; border-bottom: 3px solid transparent; }
         .nav-tabs .nav-link.active { color: var(--primary-color); background-color: transparent; border-color: var(--primary-color); }
         .tab-content { padding-top: 1.5rem; }
@@ -46,16 +52,15 @@
 
     <header class="dashboard-header">
         <div class="container-fluid">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="display-5 mb-0" id="strategy-title">Strategy Performance</h1>
-                    <p class="lead mb-0" id="strategy-subtitle">Loading data...</p>
+                    <h2 class="mb-0" id="strategy-title">Strategy Performance</h2>
+                    <p class="lead mb-0" id="strategy-subtitle" style="font-size: 1rem; opacity: 0.8;">Loading data...</p>
                 </div>
-                <div>
+                <div class="d-flex gap-2">
                     <input type="file" id="file-input" class="d-none" accept=".json">
-                    <button class="btn btn-light" onclick="document.getElementById('file-input').click()">
-                        <i class="fas fa-upload me-2"></i>Load New Data
-                    </button>
+                    <button class="btn btn-light btn-sm" onclick="document.getElementById('file-input').click()"><i class="fas fa-upload me-2"></i>Load New Data</button>
+                    <button class="btn btn-light btn-sm" id="pdf-button" onclick="generatePdfReport()"><i class="fas fa-file-pdf me-2"></i>Generate PDF</button>
                 </div>
             </div>
         </div>
@@ -63,7 +68,7 @@
 
     <main class="container-fluid">
         <div id="error-display" class="alert alert-danger" role="alert"></div>
-        <div class="row kpi-container" id="kpi-cards"><!-- KPIs populated here --></div>
+        <div class="row kpi-container" id="kpi-cards" style="padding-top: 0; padding-bottom: 0;"><!-- KPIs populated here --></div>
         <ul class="nav nav-tabs mt-3" id="pills-tab" role="tablist">
             <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#overview"><i class="fas fa-chart-line me-2"></i>Overview</button></li>
             <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#risk"><i class="fas fa-shield-alt me-2"></i>Risk Analysis</button></li>
@@ -72,23 +77,10 @@
         </ul>
 
         <div class="tab-content" id="pills-tabContent">
-            <div class="tab-pane fade show active" id="overview" role="tabpanel"><div class="row">
-                <div class="col-xl-12"><div class="chart-container" id="cumulative-returns-container"></div></div>
-                <div class="col-xl-6"><div class="chart-container" id="daily-returns-container"></div></div>
-                <div class="col-xl-6"><div class="chart-container" id="returns-histogram-container"></div></div>
-            </div></div>
-            <div class="tab-pane fade" id="risk" role="tabpanel"><div class="row">
-                <div class="col-xl-12"><div class="chart-container" id="underwater-plot-container"></div></div>
-                <div class="col-xl-6"><div class="chart-container" id="rolling-sharpe-container"></div></div>
-                <div class="col-xl-6"><div class="chart-container" id="worst-drawdowns-container"></div></div>
-            </div></div>
-            <div class="tab-pane fade" id="monthly" role="tabpanel"><div class="row">
-                <div class="col-xl-8"><div class="chart-container" id="monthly-heatmap-container"></div></div>
-                <div class="col-xl-4"><div class="chart-container" id="monthly-histogram-container"></div></div>
-            </div></div>
-            <div class="tab-pane fade" id="table-view" role="tabpanel"><div class="row">
-                <div class="col-12"><div class="table-container" id="metrics-table-container"></div></div>
-            </div></div>
+            <div class="tab-pane fade show active" id="overview" role="tabpanel"><div class="row"><div class="col-xl-12"><div class="chart-container" id="cumulative-returns-container"></div></div><div class="col-xl-6"><div class="chart-container" id="daily-returns-container"></div></div><div class="col-xl-6"><div class="chart-container" id="returns-histogram-container"></div></div></div></div>
+            <div class="tab-pane fade" id="risk" role="tabpanel"><div class="row"><div class="col-xl-12"><div class="chart-container" id="underwater-plot-container"></div></div><div class="col-xl-6"><div class="chart-container" id="rolling-sharpe-container"></div></div><div class="col-xl-6"><div class="chart-container" id="worst-drawdowns-container"></div></div></div></div>
+            <div class="tab-pane fade" id="monthly" role="tabpanel"><div class="row"><div class="col-xl-8"><div class="chart-container" id="monthly-heatmap-container"></div></div><div class="col-xl-4"><div class="chart-container" id="monthly-histogram-container"></div></div></div></div>
+            <div class="tab-pane fade" id="table-view" role="tabpanel"><div class="row"><div class="col-12"><div class="table-container" id="metrics-table-container"></div></div></div></div>
         </div>
     </main>
 
@@ -98,15 +90,17 @@
     <script>
         const DEFAULT_DATA_URL = 'dashboard_data.json';
         const ROLLING_WINDOW = 252;
+        let currentData = null;
 
         // --- UTILITY FUNCTIONS ---
         const formatPercent = (v) => v != null ? `${v.toFixed(2)}%` : '-';
         const formatNumber = (v, d = 2) => v != null ? v.toFixed(d) : '-';
         const getStandardLayout = (t, y) => ({ title: { text: t, font: { size: 18 } }, yaxis: { title: y, automargin: true, gridcolor: '#e9ecef' }, xaxis: { automargin: true, gridcolor: '#e9ecef' }, margin: { l: 60, r: 30, t: 50, b: 50 }, legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(255,255,255,0.7)' }, hovermode: 'x unified', plot_bgcolor: 'var(--card-background-color)', paper_bgcolor: 'var(--card-background-color)', font: { color: 'var(--text-color)' } });
         const getStandardConfig = () => ({ responsive: true, displaylogo: false });
-        const renderChart = (id, d, l, c) => { const el = document.getElementById(id); el.innerHTML = ''; Plotly.newPlot(el, d, l, c); };
+        const renderChart = (id, d, l, c) => { const el = document.getElementById(id); if(el) {el.innerHTML = ''; Plotly.newPlot(el, d, l, c);} };
         const showError = (msg) => { const el = document.getElementById('error-display'); el.textContent = `Error: ${msg}. If running locally, please use a web server.`; el.style.display = 'block'; };
-        const showLoadingSpinners = () => { document.querySelectorAll('.chart-container, .kpi-container, #metrics-table-container').forEach(c => { c.innerHTML = '<div class="loading-spinner"></div>'; }); };
+        const showLoadingSpinners = () => { document.querySelectorAll('.chart-container, .kpi-container, #metrics-table-container').forEach(c => { if(c) c.innerHTML = '<div class="loading-spinner"></div>'; }); };
+        const delay = ms => new Promise(res => setTimeout(res, ms));
 
         // --- DATA LOADING & INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -127,147 +121,128 @@
                 } else {
                     data = JSON.parse(await source.text());
                 }
+                currentData = data;
                 document.getElementById('error-display').style.display = 'none';
                 updateDashboard(data);
             } catch (error) {
                 console.error('Data loading/parsing failed:', error);
                 showError(error.message);
-                console.log('Displaying fallback sample data due to error.');
-                updateDashboard(generateSampleData());
+                currentData = generateSampleData();
+                updateDashboard(currentData);
             }
         }
 
-        // --- DASHBOARD UPDATE & RENDERING ---
-        function updateDashboard(data) {
-            try {
-                document.getElementById('strategy-title').textContent = data.metadata.strategy_name;
-                document.getElementById('strategy-subtitle').textContent = `Analysis from ${data.metadata.start_date} to ${data.metadata.end_date}`;
-                populateKPIs(data.performance_metrics);
-                populateMetricsTable(data);
-                plotCumulativeReturns(data);
-                plotDailyReturns(data);
-                plotReturnsHistogram(data);
-                plotUnderwaterPlot(data);
-                plotRollingSharpe(data);
-                plotWorstDrawdowns(data);
-                plotMonthlyHeatmap(data);
-                plotMonthlyHistogram(data);
-            } catch (error) {
-                console.error("Failed to update dashboard components:", error);
-                showError(`Could not render dashboard. Data might be malformed. Error: ${error.message}`);
-            }
-        }
-
-        function populateKPIs(metrics) {
-            const container = document.getElementById('kpi-cards');
-            const { strategy } = metrics;
-            const kpis = [
-                { l: 'Annualized Return', v: formatPercent(strategy.annualized_return), i: 'fa-arrow-trend-up' },
-                { l: 'Sharpe Ratio', v: formatNumber(strategy.sharpe_ratio), i: 'fa-chart-pie' },
-                { l: 'Max Drawdown', v: formatPercent(strategy.max_drawdown), i: 'fa-arrow-trend-down', neg: true },
-                { l: 'Calmar Ratio', v: formatNumber(strategy.calmar_ratio), i: 'fa-scale-balanced' }
-            ];
-            container.innerHTML = kpis.map(k => `<div class="col-xl-3 col-md-6"><div class="kpi-card"><div class="kpi-icon ${k.neg ? 'metric-negative' : 'metric-positive'}"><i class="fas ${k.i}"></i></div><div class="kpi-value ${k.neg ? 'metric-negative' : 'metric-positive'}">${k.v}</div><div class="kpi-label">${k.l}</div></div></div>`).join('');
-        }
-
-        function populateMetricsTable(data) {
-            const { strategy, benchmark } = data.performance_metrics;
-            const metrics = [
-                ['Total Return', formatPercent(strategy.total_return), formatPercent(benchmark.total_return)],
-                ['Annualized Return', formatPercent(strategy.annualized_return), formatPercent(benchmark.annualized_return)],
-                ['Volatility', formatPercent(strategy.volatility), formatPercent(benchmark.volatility)],
-                ['Sharpe Ratio', formatNumber(strategy.sharpe_ratio, 3), formatNumber(benchmark.sharpe_ratio, 3)],
-                ['Sortino Ratio', formatNumber(strategy.sortino_ratio, 3), '-'],
-                ['Max Drawdown', formatPercent(strategy.max_drawdown), formatPercent(benchmark.max_drawdown)],
-                ['Calmar Ratio', formatNumber(strategy.calmar_ratio, 3), '-'],
-                ['Beta', formatNumber(strategy.beta, 3), '-'],
-                ['Alpha', formatPercent(strategy.alpha), '-'],
-                ['Win Rate', formatPercent(strategy.win_rate), '-']
-            ];
-            const tableHTML = `
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="table-dark"><tr><th>Metric</th><th>Strategy</th><th>Benchmark</th></tr></thead>
-                        <tbody>${metrics.map(([m, s, b]) => `<tr><td><strong>${m}</strong></td><td>${s}</td><td>${b}</td></tr>`).join('')}</tbody>
-                    </table>
-                </div>`;
-            document.getElementById('metrics-table-container').innerHTML = tableHTML;
-        }
-
-        // --- PLOTTING FUNCTIONS ---
+        // --- DASHBOARD UPDATE & RENDERING (functions are collapsed for brevity) ---
+        function updateDashboard(data) { try { document.getElementById('strategy-title').textContent = data.metadata.strategy_name; document.getElementById('strategy-subtitle').textContent = `Analysis from ${data.metadata.start_date} to ${data.metadata.end_date}`; populateKPIs(data.performance_metrics); populateMetricsTable(data); plotCumulativeReturns(data); plotDailyReturns(data); plotReturnsHistogram(data); plotUnderwaterPlot(data); plotRollingSharpe(data); plotWorstDrawdowns(data); plotMonthlyHeatmap(data); plotMonthlyHistogram(data); } catch (error) { console.error("Failed to update dashboard components:", error); showError(`Could not render dashboard. Data might be malformed. Error: ${error.message}`); } }
+        function populateKPIs(metrics) { const container = document.getElementById('kpi-cards'); const { strategy } = metrics; const kpis = [{ l: 'Annualized Return', v: formatPercent(strategy.annualized_return), i: 'fa-arrow-trend-up', raw: strategy.annualized_return }, { l: 'Sharpe Ratio', v: formatNumber(strategy.sharpe_ratio), i: 'fa-chart-pie' }, { l: 'Max Drawdown', v: formatPercent(strategy.max_drawdown), i: 'fa-arrow-trend-down' }, { l: 'Calmar Ratio', v: formatNumber(strategy.calmar_ratio), i: 'fa-scale-balanced' }]; container.innerHTML = kpis.map(k => { let valueClass; if (['Sharpe Ratio', 'Calmar Ratio', 'Max Drawdown'].includes(k.l)) { valueClass = 'metric-info'; } else if (k.l === 'Annualized Return') { valueClass = k.raw < 0 ? 'metric-negative' : 'metric-positive'; } else { valueClass = 'metric-positive'; } return `<div class="col-xl-3 col-md-6"><div class="kpi-card"><div class="kpi-icon ${valueClass}"><i class="fas ${k.i}"></i></div><div class="kpi-value ${valueClass}">${k.v}</div><div class="kpi-label">${k.l}</div></div></div>`; }).join(''); }
+        function populateMetricsTable(data) { const { strategy, benchmark } = data.performance_metrics; const metadata = data.metadata; const metrics = [['Total Return', formatPercent(strategy.total_return), formatPercent(benchmark.total_return)], ['Annualized Return', formatPercent(strategy.annualized_return), formatPercent(benchmark.annualized_return)], ['Volatility', formatPercent(strategy.volatility), formatPercent(benchmark.volatility)], ['Sharpe Ratio', formatNumber(strategy.sharpe_ratio, 3), formatNumber(benchmark.sharpe_ratio, 3)], ['Sortino Ratio', formatNumber(strategy.sortino_ratio, 3), '-'], ['Max Drawdown', formatPercent(strategy.max_drawdown), formatPercent(benchmark.max_drawdown)], ['Calmar Ratio', formatNumber(strategy.calmar_ratio, 3), '-'], ['Beta', formatNumber(strategy.beta, 3), '-'], ['Alpha', formatPercent(strategy.alpha), '-'], ['Win Rate', formatPercent(strategy.win_rate), '-']]; metrics.unshift(['End Date', metadata.end_date, '-'], ['Start Date', metadata.start_date, '-']); const tableHTML = `<div class="table-responsive"><table class="table table-striped table-hover"><thead class="table-dark"><tr><th>Metric</th><th>Strategy</th><th>Benchmark</th></tr></thead><tbody>${metrics.map(([m, s, b]) => `<tr><td><strong>${m}</strong></td><td>${s}</td><td>${b}</td></tr>`).join('')}</tbody></table></div>`; document.getElementById('metrics-table-container').innerHTML = tableHTML; }
         const plotCumulativeReturns = (d) => renderChart('cumulative-returns-container', [{ x: d.time_series.dates, y: d.time_series.cumulative_strategy, name: d.metadata.strategy_name, line: { color: 'var(--primary-color)', width: 2 } }, { x: d.time_series.dates, y: d.time_series.cumulative_benchmark, name: 'Benchmark', line: { color: 'var(--text-muted-color)', width: 2, dash: 'dot' } }], getStandardLayout('Cumulative Returns vs Benchmark', 'Cumulative Return'));
         const plotDailyReturns = (d) => renderChart('daily-returns-container', [{ x: d.time_series.dates, y: d.time_series.strategy_returns.map(r => r * 100), type: 'scatter', mode: 'lines', line: { color: 'var(--primary-color)', width: 1 } }], getStandardLayout('Daily Returns (%)', 'Return (%)', false));
         const plotReturnsHistogram = (d) => renderChart('returns-histogram-container', [{ x: d.time_series.strategy_returns.map(r => r * 100), type: 'histogram', nbinsx: 50, marker: { color: 'var(--primary-color)' } }], getStandardLayout('Distribution of Daily Returns', 'Frequency', false));
         const plotUnderwaterPlot = (d) => renderChart('underwater-plot-container', [{ x: d.time_series.dates, y: d.time_series.drawdown_strategy, type: 'scatter', fill: 'tozeroy', mode: 'lines', line: { color: 'var(--negative-color)', width: 1 }, fillcolor: 'rgba(220, 53, 69, 0.2)' }], getStandardLayout('Underwater Plot (Drawdown)', 'Drawdown (%)', false));
         const plotRollingSharpe = (d) => renderChart('rolling-sharpe-container', [{ x: d.time_series.rolling_dates, y: d.time_series.rolling_sharpe, type: 'scatter', mode: 'lines', line: { color: 'var(--secondary-color)', width: 2 } }], getStandardLayout(`Rolling Sharpe Ratio (${ROLLING_WINDOW}-Day)`, 'Sharpe Ratio', false));
         const plotWorstDrawdowns = (d) => { const dd = d.risk_metrics.worst_drawdowns.slice(0, 5); renderChart('worst-drawdowns-container', [{ y: dd.map((d, i) => `DD ${i+1}<br>${new Date(d.start).toLocaleDateString()}`), x: dd.map(d => d.magnitude), type: 'bar', orientation: 'h', marker: { color: 'var(--negative-color)' }, text: dd.map(d => `${d.magnitude.toFixed(2)}%`), textposition: 'inside' }], { ...getStandardLayout('Top 5 Worst Drawdown Periods', 'Max Drawdown (%)', false), yaxis: { autorange: 'reversed' } }); };
-        function plotMonthlyHeatmap(data) { /* ... same as before, see below ... */ }
-        function plotMonthlyHistogram(data) { /* ... same as before, see below ... */ }
-        
-        // --- FULL PLOTTING FUNCTIONS (to avoid clutter above) ---
-        function plotMonthlyHeatmap(data) {
-            const monthlyReturns = {};
-            data.time_series.dates.forEach((dateStr, i) => { const d = new Date(dateStr); const k = `${d.getFullYear()}-${d.getMonth()}`; if (!monthlyReturns[k]) monthlyReturns[k] = []; monthlyReturns[k].push(data.time_series.strategy_returns[i]); });
-            const years = [...new Set(Object.keys(monthlyReturns).map(k => k.split('-')[0]))].sort();
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const z = years.map(y => Array.from({ length: 12 }, (_, m) => { const k = `${y}-${m}`; return monthlyReturns[k] ? (monthlyReturns[k].reduce((a, r) => a * (1 + r), 1) - 1) * 100 : null; }));
-            renderChart('monthly-heatmap-container', [{ z, x: months, y: years, type: 'heatmap', colorscale: 'RdYlGn', hoverongaps: false }], getStandardLayout('Monthly Returns Heatmap (%)', '', false));
-        }
-        function plotMonthlyHistogram(data) {
-            const monthlyReturns = {};
-            data.time_series.dates.forEach((dateStr, i) => { const d = new Date(dateStr); const k = `${d.getFullYear()}-${d.getMonth()}`; if (!monthlyReturns[k]) monthlyReturns[k] = []; monthlyReturns[k].push(data.time_series.strategy_returns[i]); });
-            const returns = Object.values(monthlyReturns).map(dayReturns => (dayReturns.reduce((a, r) => a * (1 + r), 1) - 1) * 100);
-            renderChart('monthly-histogram-container', [{ x: returns, type: 'histogram', nbinsx: 20, marker: { color: 'var(--secondary-color)' } }], getStandardLayout('Monthly Returns Distribution', 'Frequency', false));
-        }
+        function plotMonthlyHeatmap(data) { const monthlyReturns = {}; data.time_series.dates.forEach((dateStr, i) => { const d = new Date(dateStr); const k = `${d.getFullYear()}-${d.getMonth()}`; if (!monthlyReturns[k]) monthlyReturns[k] = []; monthlyReturns[k].push(data.time_series.strategy_returns[i]); }); const years = [...new Set(Object.keys(monthlyReturns).map(k => k.split('-')[0]))].sort(); const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; const z = years.map(y => Array.from({ length: 12 }, (_, m) => { const k = `${y}-${m}`; return monthlyReturns[k] ? (monthlyReturns[k].reduce((a, r) => a * (1 + r), 1) - 1) * 100 : null; })); renderChart('monthly-heatmap-container', [{ z, x: months, y: years, type: 'heatmap', colorscale: 'RdYlGn', hoverongaps: false }], getStandardLayout('Monthly Returns Heatmap (%)', '', false)); }
+        function plotMonthlyHistogram(data) { const monthlyReturns = {}; data.time_series.dates.forEach((dateStr, i) => { const d = new Date(dateStr); const k = `${d.getFullYear()}-${d.getMonth()}`; if (!monthlyReturns[k]) monthlyReturns[k] = []; monthlyReturns[k].push(data.time_series.strategy_returns[i]); }); const returns = Object.values(monthlyReturns).map(dayReturns => (dayReturns.reduce((a, r) => a * (1 + r), 1) - 1) * 100); renderChart('monthly-histogram-container', [{ x: returns, type: 'histogram', nbinsx: 20, marker: { color: 'var(--secondary-color)' } }], getStandardLayout('Monthly Returns Distribution', 'Frequency', false)); }
+        function generateSampleData() { const dates = []; const strategyReturns = []; const benchmarkReturns = []; const cumulativeStrategy = [1]; const cumulativeBenchmark = [1]; const startDate = new Date('2020-01-01'); const days = 1000; for (let i = 0; i < days; i++) { const date = new Date(startDate.getTime() + i * 864e5); dates.push(date.toISOString().split('T')[0]); const strategyReturn = (Math.random() - 0.51) * 0.02; const benchmarkReturn = (Math.random() - 0.49) * 0.018; strategyReturns.push(strategyReturn); benchmarkReturns.push(benchmarkReturn); cumulativeStrategy.push(cumulativeStrategy[i] * (1 + strategyReturn)); cumulativeBenchmark.push(cumulativeBenchmark[i] * (1 + benchmarkReturn)); } const cumStrat = cumulativeStrategy.slice(1); let peak = -Infinity; const drawdown = cumStrat.map(val => { peak = Math.max(peak, val); return (val / peak - 1) * 100; }); const rollingSharpe = []; for (let i = ROLLING_WINDOW - 1; i < strategyReturns.length; i++) { const window = strategyReturns.slice(i - ROLLING_WINDOW + 1, i + 1); const mean = window.reduce((a, b) => a + b, 0) / window.length; const std = Math.sqrt(window.reduce((a, b) => a + (b - mean) ** 2, 0) / window.length); rollingSharpe.push(std > 0 ? (mean / std) * Math.sqrt(252) : 0); } return { metadata: { strategy_name: 'Sample Strategy (Fallback)', start_date: '2020-01-01', end_date: '2022-09-26', assets: ['SAMPLE'] }, time_series: { dates: dates, strategy_returns: strategyReturns, benchmark_returns: benchmarkReturns, cumulative_strategy: cumulativeStrategy.slice(1), cumulative_benchmark: cumulativeBenchmark.slice(1), drawdown_strategy: drawdown, rolling_dates: dates.slice(ROLLING_WINDOW - 1), rolling_sharpe: rollingSharpe, }, performance_metrics: { strategy: { total_return: -15.3, annualized_return: -5.1, volatility: 18.2, sharpe_ratio: -0.28, sortino_ratio: -0.5, max_drawdown: -35.4, calmar_ratio: -0.14, beta: 0.8, alpha: -8.2, win_rate: 48.1 }, benchmark: { total_return: 35.8, annualized_return: 10.2, volatility: 15.1, sharpe_ratio: 0.67, max_drawdown: -20.1 } }, risk_metrics: { worst_drawdowns: [ { start: '2020-03-01', end: '2020-03-25', magnitude: -35.4 }, { start: '2021-09-05', end: '2021-10-01', magnitude: -28.2 }, { start: '2022-01-10', end: '2022-02-15', magnitude: -17.5 }, { start: '2022-05-01', end: '2022-05-20', magnitude: -16.1 }, { start: '2020-11-02', end: '2020-11-15', magnitude: -15.3 } ] } }; }
 
-        // --- **FIXED** FALLBACK SAMPLE DATA ---
-        function generateSampleData() {
-            const dates = []; const strategyReturns = []; const benchmarkReturns = [];
-            const cumulativeStrategy = [1]; const cumulativeBenchmark = [1];
-            const startDate = new Date('2020-01-01'); const days = 1000;
-            for (let i = 0; i < days; i++) {
-                const date = new Date(startDate.getTime() + i * 864e5);
-                dates.push(date.toISOString().split('T')[0]);
-                const strategyReturn = (Math.random() - 0.48) * 0.02;
-                const benchmarkReturn = (Math.random() - 0.49) * 0.018;
-                strategyReturns.push(strategyReturn);
-                benchmarkReturns.push(benchmarkReturn);
-                cumulativeStrategy.push(cumulativeStrategy[i] * (1 + strategyReturn));
-                cumulativeBenchmark.push(cumulativeBenchmark[i] * (1 + benchmarkReturn));
-            }
-            const cumStrat = cumulativeStrategy.slice(1);
-            let peak = -Infinity;
-            const drawdown = cumStrat.map(val => { peak = Math.max(peak, val); return (val / peak - 1) * 100; });
-            const rollingSharpe = [];
-            for (let i = ROLLING_WINDOW - 1; i < strategyReturns.length; i++) {
-                const window = strategyReturns.slice(i - ROLLING_WINDOW + 1, i + 1);
-                const mean = window.reduce((a, b) => a + b, 0) / window.length;
-                const std = Math.sqrt(window.reduce((a, b) => a + (b - mean) ** 2, 0) / window.length);
-                rollingSharpe.push(std > 0 ? (mean / std) * Math.sqrt(252) : 0);
-            }
-            return {
-                metadata: { strategy_name: 'Sample Strategy (Fallback)', start_date: '2020-01-01', end_date: '2022-09-26', assets: ['SAMPLE'] },
-                time_series: {
-                    dates: dates,
-                    strategy_returns: strategyReturns, benchmark_returns: benchmarkReturns,
-                    cumulative_strategy: cumulativeStrategy.slice(1), cumulative_benchmark: cumulativeBenchmark.slice(1),
-                    drawdown_strategy: drawdown,
-                    rolling_dates: dates.slice(ROLLING_WINDOW - 1), rolling_sharpe: rollingSharpe,
-                },
-                performance_metrics: {
-                    strategy: { total_return: 55.3, annualized_return: 15.1, volatility: 18.2, sharpe_ratio: 0.83, sortino_ratio: 1.2, max_drawdown: -15.4, calmar_ratio: 0.98, beta: 0.8, alpha: 5.2, win_rate: 52.1 },
-                    benchmark: { total_return: 35.8, annualized_return: 10.2, volatility: 15.1, sharpe_ratio: 0.67, max_drawdown: -20.1 }
-                },
-                risk_metrics: {
-                    worst_drawdowns: [
-                        { start: '2020-03-01', end: '2020-03-25', magnitude: -15.4 },
-                        { start: '2021-09-05', end: '2021-10-01', magnitude: -8.2 },
-                        { start: '2022-01-10', end: '2022-02-15', magnitude: -7.5 },
-                        { start: '2022-05-01', end: '2022-05-20', magnitude: -6.1 },
-                        { start: '2020-11-02', end: '2020-11-15', magnitude: -5.3 }
-                    ]
+        // --- PDF GENERATION LOGIC ---
+        async function generatePdfReport() {
+            const pdfButton = document.getElementById('pdf-button');
+            const originalButtonText = pdfButton.innerHTML;
+
+            try {
+                pdfButton.disabled = true;
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                let yPos = 15;
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const margin = 15;
+                const usableWidth = pageWidth - (2 * margin);
+
+                const addPageIfNeeded = (elementHeight) => {
+                    if (yPos + elementHeight > pageHeight - margin) {
+                        pdf.addPage();
+                        yPos = margin;
+                    }
+                };
+                
+                // --- 1. TITLE PAGE ---
+                pdf.setFontSize(22).text(currentData.metadata.strategy_name, pageWidth / 2, yPos, { align: 'center' });
+                yPos += 10;
+                pdf.setFontSize(14).text(`Performance Report`, pageWidth / 2, yPos, { align: 'center' });
+                yPos += 8;
+                pdf.setFontSize(10).text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
+                
+                // --- 2. DEFINE ELEMENTS TO CAPTURE ---
+                const contentToCapture = [
+                    { id: 'kpi-cards', title: 'Key Performance Indicators', type: 'html' },
+                    { id: 'metrics-table-container', title: 'Performance Metrics Summary', type: 'html' },
+                    { id: 'cumulative-returns-container', title: 'Cumulative Returns', type: 'plotly' },
+                    { id: 'underwater-plot-container', title: 'Drawdown Curve', type: 'plotly' },
+                    { id: 'daily-returns-container', title: 'Daily Returns', type: 'plotly' },
+                    { id: 'returns-histogram-container', title: 'Daily Returns Histogram', type: 'plotly' },
+                    { id: 'rolling-sharpe-container', title: 'Rolling Sharpe Ratio', type: 'plotly' },
+                    { id: 'worst-drawdowns-container', title: 'Top 5 Worst Drawdowns', type: 'plotly' },
+                    { id: 'monthly-heatmap-container', title: 'Monthly Returns Heatmap', type: 'plotly' },
+                    { id: 'monthly-histogram-container', title: 'Monthly Returns Distribution', type: 'plotly' },
+                ];
+
+                // --- 3. ITERATE, SWITCH TABS, AND ADD TO PDF ---
+                for (let i = 0; i < contentToCapture.length; i++) {
+                    const item = contentToCapture[i];
+                    const element = document.getElementById(item.id);
+                    if (!element) continue;
+
+                    pdfButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> (${i + 1}/${contentToCapture.length})`;
+
+                    // Switch to the correct tab to make the element visible
+                    const tabPane = element.closest('.tab-pane');
+                    if (tabPane && !tabPane.classList.contains('active')) {
+                        const tabButton = document.querySelector(`button[data-bs-target="#${tabPane.id}"]`);
+                        if(tabButton) new bootstrap.Tab(tabButton).show();
+                        await delay(200); // Give tab time to render
+                    }
+                    
+                    let imgData;
+                    let canvasHeight, canvasWidth;
+
+                    if(item.type === 'plotly') {
+                        imgData = await Plotly.toImage(element, { format: 'png', scale: 2 });
+                        const img = new Image();
+                        img.src = imgData;
+                        await new Promise(resolve => img.onload = resolve);
+                        canvasHeight = img.height;
+                        canvasWidth = img.width;
+                    } else { // type 'html'
+                        const canvas = await html2canvas(element, { scale: 2 });
+                        imgData = canvas.toDataURL('image/png');
+                        canvasHeight = canvas.height;
+                        canvasWidth = canvas.width;
+                    }
+
+                    const imgHeight = (canvasHeight * usableWidth) / canvasWidth;
+                    addPageIfNeeded(imgHeight + 15);
+                    yPos += 5;
+                    pdf.setFontSize(16).setTextColor(40).text(item.title, margin, yPos);
+                    yPos += 8;
+                    pdf.addImage(imgData, 'PNG', margin, yPos, usableWidth, imgHeight);
+                    yPos += imgHeight + 5;
                 }
-            };
+
+                // --- 4. SAVE THE PDF ---
+                const fileName = `report_${currentData.metadata.strategy_name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+                pdf.save(fileName);
+
+            } catch (error) {
+                console.error("PDF Generation Failed:", error);
+                showError("Could not generate PDF. Please check the console for errors.");
+            } finally {
+                // This block ALWAYS runs, ensuring the button is reset
+                pdfButton.disabled = false;
+                pdfButton.innerHTML = originalButtonText;
+            }
         }
     </script>
 </body>

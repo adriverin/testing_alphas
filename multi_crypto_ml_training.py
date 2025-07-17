@@ -361,14 +361,15 @@ if __name__ == "__main__":
     print("=" * 50)
 
 
-    # crypto_assets_new = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD']
-    crypto_assets_new = ['DOGE-USD', 'PEPE-USD', 'SHIB-USD', 'FLOKI-USD']
+    crypto_assets_new = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'LTC-USD']
+    # crypto_assets_new = ['DOGE-USD', 'PEPE-USD', 'SHIB-USD', 'FLOKI-USD']
     
     base_config_new = MLConfig.for_improved_training(
-        start="2023-05-05", 
+        # start="2023-05-05", 
+        start="2018-01-01",
         end="2025-01-01",  
         interval="1h",
-        price_column="typical",  # Options: "open", "high", "low", "close", "vwap", "typical", "median"
+        price_column="median",  # Options: "open", "high", "low", "close", "vwap", "typical", "median"
         forecast_horizon_hours=1,
         vol_window_hours=24,
         n_quantiles=5,
@@ -381,10 +382,10 @@ if __name__ == "__main__":
         volatility_windows=(5, 10, 20, 30),
         momentum_windows=(7, 14, 21, 30, 40, 50),
         rsi_windows=(3, 7, 14, 21),
-        signal_percentiles=(5, 95),
-        train_ratio = 0.75,     # For improved mode
-        val_ratio = 0.1,       # For improved mode
-        test_ratio = 0.15      # For improved mode        
+        signal_percentiles=(9, 91),
+        train_ratio = 0.75,     
+        val_ratio = 0.1,       
+        test_ratio = 0.15     
     )
 
     # FOLLOWING PREDICTS 36% OF QUINTILES??? STILL LEAD TO BAD RETURNS SOMEHOW
