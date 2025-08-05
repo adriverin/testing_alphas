@@ -1,3 +1,6 @@
+# Mayor reforms in progress... (05.08.2025)
+**Code simplification, with less but improved core features**
+
 # 101 Formulaic Alphas: A Quantitative Trading Framework
 
 This repository contains a **production-ready Python framework** for implementing, backtesting, and analyzing quantitative trading strategies. Originally based on the **"101 Formulaic Alphas"** paper by Zura Kakushadze, it is evolving into a comprehensive alpha research platform with **mid-frequency crypto capabilities**, **ML integration**, and **risk management**.
